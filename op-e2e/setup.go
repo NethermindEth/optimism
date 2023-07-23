@@ -42,6 +42,7 @@ import (
 	batchermetrics "github.com/ethereum-optimism/optimism/op-batcher/metrics"
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/genesis"
+	"github.com/ethereum-optimism/optimism/op-e2e/config"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
 	"github.com/ethereum-optimism/optimism/op-node/chaincfg"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
@@ -80,72 +81,41 @@ func DefaultSystemConfig(t *testing.T) SystemConfig {
 	require.NoError(t, err)
 	addresses := secrets.Addresses()
 
-	deployConfig := &genesis.DeployConfig{
-		L1ChainID:   900,
-		L2ChainID:   901,
-		L2BlockTime: 1,
+	// copy the deploy config
+	// TODO: add a Copy function to the deploy config itself
+	deployConfig := config.DeployConfig
 
-		FinalizationPeriodSeconds: 60 * 60 * 24,
-		MaxSequencerDrift:         10,
-		SequencerWindowSize:       30,
-		ChannelTimeout:            10,
-		P2PSequencerAddress:       addresses.SequencerP2P,
-		BatchInboxAddress:         common.Address{0: 0x52, 19: 0xff}, // tbd
-		BatchSenderAddress:        addresses.Batcher,
-
-		L2OutputOracleSubmissionInterval: 4,
-		L2OutputOracleStartingTimestamp:  -1,
-		L2OutputOracleProposer:           addresses.Proposer,
-		L2OutputOracleChallenger:         common.Address{}, // tbd
-
-		FinalSystemOwner: addresses.SysCfgOwner,
-
-		L1BlockTime:                 2,
-		L1GenesisBlockNonce:         4660,
-		CliqueSignerAddress:         common.Address{}, // op-e2e used to run Clique, but now uses fake Proof of Stake.
-		L1GenesisBlockTimestamp:     hexutil.Uint64(time.Now().Unix()),
-		L1GenesisBlockGasLimit:      30_000_000,
-		L1GenesisBlockDifficulty:    uint642big(1),
-		L1GenesisBlockMixHash:       common.Hash{},
-		L1GenesisBlockCoinbase:      common.Address{},
-		L1GenesisBlockNumber:        0,
-		L1GenesisBlockGasUsed:       0,
-		L1GenesisBlockParentHash:    common.Hash{},
-		L1GenesisBlockBaseFeePerGas: uint642big(7),
-
-		L2GenesisBlockNonce:         0,
-		L2GenesisBlockGasLimit:      30_000_000,
-		L2GenesisBlockDifficulty:    uint642big(1),
-		L2GenesisBlockMixHash:       common.Hash{},
-		L2GenesisBlockNumber:        0,
-		L2GenesisBlockGasUsed:       0,
-		L2GenesisBlockParentHash:    common.Hash{},
-		L2GenesisBlockBaseFeePerGas: uint642big(7),
-
-		GasPriceOracleOverhead: 2100,
-		GasPriceOracleScalar:   1_000_000,
-
-		SequencerFeeVaultRecipient:               common.Address{19: 1},
-		BaseFeeVaultRecipient:                    common.Address{19: 2},
-		L1FeeVaultRecipient:                      common.Address{19: 3},
-		BaseFeeVaultMinimumWithdrawalAmount:      uint642big(1000_000_000), // 1 gwei
-		L1FeeVaultMinimumWithdrawalAmount:        uint642big(1000_000_000), // 1 gwei
-		SequencerFeeVaultMinimumWithdrawalAmount: uint642big(1000_000_000), // 1 gwei
-		BaseFeeVaultWithdrawalNetwork:            uint8(1),                 // L2 withdrawal network
-		L1FeeVaultWithdrawalNetwork:              uint8(1),                 // L2 withdrawal network
-		SequencerFeeVaultWithdrawalNetwork:       uint8(1),                 // L2 withdrawal network
-
-		DeploymentWaitConfirmations: 1,
-
-		EIP1559Elasticity:  2,
-		EIP1559Denominator: 8,
-
-		FundDevAccounts: true,
-	}
-
-	if err := deployConfig.InitDeveloperDeployedAddresses(); err != nil {
-		panic(err)
-	}
+	// TODO: temp hack to make sure config is the same
+	deployConfig.L2BlockTime = 1
+	deployConfig.FinalizationPeriodSeconds = 60 * 60 * 24
+	deployConfig.MaxSequencerDrift = 10
+	deployConfig.SequencerWindowSize = 30
+	deployConfig.ChannelTimeout = 10
+	deployConfig.P2PSequencerAddress = addresses.SequencerP2P
+	deployConfig.BatchSenderAddress = addresses.Batcher
+	deployConfig.L2OutputOracleSubmissionInterval = 4
+	deployConfig.L2OutputOracleStartingTimestamp = -1
+	deployConfig.L2OutputOracleProposer = addresses.Proposer
+	deployConfig.FinalSystemOwner = addresses.SysCfgOwner
+	deployConfig.L1BlockTime = 2
+	deployConfig.L1GenesisBlockNonce = 4660
+	deployConfig.L1GenesisBlockTimestamp = hexutil.Uint64(time.Now().Unix())
+	deployConfig.L1GenesisBlockGasLimit = 30_000_000
+	deployConfig.L1GenesisBlockDifficulty = uint642big(1)
+	deployConfig.L1GenesisBlockMixHash = common.Hash{}
+	deployConfig.L1GenesisBlockCoinbase = common.Address{}
+	deployConfig.L1GenesisBlockNumber = 0
+	deployConfig.L1GenesisBlockGasUsed = 0
+	deployConfig.L1GenesisBlockParentHash = common.Hash{}
+	deployConfig.L1GenesisBlockBaseFeePerGas = uint642big(7)
+	deployConfig.L2GenesisBlockNonce = 0
+	deployConfig.L2GenesisBlockGasLimit = 30_000_000
+	deployConfig.L2GenesisBlockDifficulty = uint642big(1)
+	deployConfig.L2GenesisBlockMixHash = common.Hash{}
+	deployConfig.L2GenesisBlockNumber = 0
+	deployConfig.L2GenesisBlockGasUsed = 0
+	deployConfig.L2GenesisBlockParentHash = common.Hash{}
+	deployConfig.L2GenesisBlockBaseFeePerGas = uint642big(7)
 
 	return SystemConfig{
 		Secrets: secrets,
@@ -355,12 +325,7 @@ func (cfg SystemConfig) Start(_opts ...SystemConfigOption) (*System, error) {
 		c = sys.TimeTravelClock
 	}
 
-	fp := "/home/tynes/Projects/github.com/ethereum-optimism/optimism/.devnet/allocs-l1.json"
-	dump, err := e2eutils.ReadAllocs(fp)
-	if err != nil {
-		return nil, err
-	}
-
+	dump := config.L1Allocs
 	l1Genesis, err := genesis.BuildL1DeveloperGenesis(cfg.DeployConfig, dump)
 	if err != nil {
 		return nil, err
@@ -425,8 +390,8 @@ func (cfg SystemConfig) Start(_opts ...SystemConfigOption) (*System, error) {
 			L1ChainID:              cfg.L1ChainIDBig(),
 			L2ChainID:              cfg.L2ChainIDBig(),
 			BatchInboxAddress:      cfg.DeployConfig.BatchInboxAddress,
-			DepositContractAddress: predeploys.DevOptimismPortalAddr,
-			L1SystemConfigAddress:  predeploys.DevSystemConfigAddr,
+			DepositContractAddress: cfg.DeployConfig.OptimismPortalProxy,
+			L1SystemConfigAddress:  cfg.DeployConfig.SystemConfigProxy,
 			RegolithTime:           cfg.DeployConfig.RegolithTime(uint64(cfg.DeployConfig.L1GenesisBlockTimestamp)),
 		}
 	}
@@ -460,6 +425,7 @@ func (cfg SystemConfig) Start(_opts ...SystemConfigOption) (*System, error) {
 		if name == "l1" {
 			continue
 		}
+		// In here someplace?
 		err = node.Start()
 		if err != nil {
 			didErrAfterStart = true
@@ -626,11 +592,17 @@ func (cfg SystemConfig) Start(_opts ...SystemConfigOption) (*System, error) {
 	if sys.RollupNodes["sequencer"] == nil {
 		return sys, nil
 	}
+
+	l2OutputOracleProxy, err := config.L1Deployments.Get("L2OutputOracleProxy")
+	if err != nil {
+		return nil, err
+	}
+
 	// L2Output Submitter
 	sys.L2OutputSubmitter, err = l2os.NewL2OutputSubmitterFromCLIConfig(l2os.CLIConfig{
 		L1EthRpc:          sys.Nodes["l1"].WSEndpoint(),
 		RollupRpc:         sys.RollupNodes["sequencer"].HTTPEndpoint(),
-		L2OOAddress:       predeploys.DevL2OutputOracleAddr.String(),
+		L2OOAddress:       l2OutputOracleProxy.Hex(),
 		PollInterval:      50 * time.Millisecond,
 		TxMgrConfig:       newTxMgrConfig(sys.Nodes["l1"].WSEndpoint(), cfg.Secrets.Proposer),
 		AllowNonFinalized: cfg.NonFinalizedProposals,

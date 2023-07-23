@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
+	"github.com/ethereum-optimism/optimism/op-e2e/config"
 )
 
 func TestWriteDefaultJWT(t *testing.T) {
@@ -32,6 +33,9 @@ func TestSetup(t *testing.T) {
 	require.Contains(t, sd.L2Cfg.Alloc, dp.Addresses.Alice)
 	require.Equal(t, sd.L2Cfg.Alloc[dp.Addresses.Alice].Balance, Ether(1e12))
 
-	require.Contains(t, sd.L1Cfg.Alloc, predeploys.DevOptimismPortalAddr)
+	optimismPortalAddr, err := config.L1Deployments.Get("OptimismPortalProxy")
+	require.NoError(t, err)
+
+	require.Contains(t, sd.L1Cfg.Alloc, optimismPortalAddr)
 	require.Contains(t, sd.L2Cfg.Alloc, predeploys.L1BlockAddr)
 }

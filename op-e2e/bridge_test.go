@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
+	"github.com/ethereum-optimism/optimism/op-e2e/config"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -73,14 +74,17 @@ func TestERC20BridgeDeposits(t *testing.T) {
 	}
 	require.NotNil(t, event)
 
+	l1StandardBridgeAddr, err := config.L1Deployments.Get("L1StandardBridgeProxy")
+	require.NoError(t, err)
+
 	// Approve WETH9 with the bridge
-	tx, err = WETH9.Approve(opts, predeploys.DevL1StandardBridgeAddr, new(big.Int).SetUint64(math.MaxUint64))
+	tx, err = WETH9.Approve(opts, l1StandardBridgeAddr, new(big.Int).SetUint64(math.MaxUint64))
 	require.NoError(t, err)
 	_, err = waitForTransaction(tx.Hash(), l1Client, 6*time.Duration(cfg.DeployConfig.L1BlockTime)*time.Second)
 	require.NoError(t, err)
 
 	// Bridge the WETH9
-	l1StandardBridge, err := bindings.NewL1StandardBridge(predeploys.DevL1StandardBridgeAddr, l1Client)
+	l1StandardBridge, err := bindings.NewL1StandardBridge(l1StandardBridgeAddr, l1Client)
 	require.NoError(t, err)
 	tx, err = l1StandardBridge.BridgeERC20(opts, weth9Address, event.LocalToken, big.NewInt(100), 100000, []byte{})
 	require.NoError(t, err)
@@ -89,8 +93,11 @@ func TestERC20BridgeDeposits(t *testing.T) {
 
 	t.Log("Deposit through L1StandardBridge", "gas used", depositReceipt.GasUsed)
 
+	optimismPortalAddr, err := config.L1Deployments.Get("OptimismPortalProxy")
+	require.NoError(t, err)
+
 	// compute the deposit transaction hash + poll for it
-	portal, err := bindings.NewOptimismPortal(predeploys.DevOptimismPortalAddr, l1Client)
+	portal, err := bindings.NewOptimismPortal(optimismPortalAddr, l1Client)
 	require.NoError(t, err)
 
 	depIt, err := portal.FilterTransactionDeposited(&bind.FilterOpts{Start: 0}, nil, nil, nil)

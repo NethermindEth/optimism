@@ -157,6 +157,39 @@ func (s *Secrets) Addresses() *Addresses {
 	}
 }
 
+func (s *Secrets) String() string {
+	addresses := s.Addresses()
+	out := ""
+	out += "Deployer:\n"
+	out += fmt.Sprintf("  - address:   %s\n", addresses.Deployer.Hex())
+	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.Deployer))
+	out += "CliqueSigner:\n"
+	out += fmt.Sprintf("  - address:   %s\n", addresses.CliqueSigner.Hex())
+	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.CliqueSigner))
+	out += "SysCfgOwner:\n"
+	out += fmt.Sprintf("  - address:   %s\n", addresses.SysCfgOwner.Hex())
+	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.SysCfgOwner))
+	out += "Proposer:\n"
+	out += fmt.Sprintf("  - address:   %s\n", addresses.Proposer.Hex())
+	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.Proposer))
+	out += "Batcher:\n"
+	out += fmt.Sprintf("  - address:   %s\n", addresses.Batcher.Hex())
+	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.Batcher))
+	out += "SequencerP2P:\n"
+	out += fmt.Sprintf("  - address:   %s\n", addresses.SequencerP2P.Hex())
+	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.SequencerP2P))
+	out += "Alice:\n"
+	out += fmt.Sprintf("  - address:   %s\n", addresses.Alice.Hex())
+	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.Alice))
+	out += "Bob:\n"
+	out += fmt.Sprintf("  - address:   %s\n", addresses.Bob.Hex())
+	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.Bob))
+	out += "Mallory:\n"
+	out += fmt.Sprintf("  - address:   %s\n", addresses.Mallory.Hex())
+	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.Mallory))
+	return out
+}
+
 // Addresses bundles the addresses for all common rollup addresses for testing purposes.
 type Addresses struct {
 	Deployer     common.Address

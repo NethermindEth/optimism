@@ -12,6 +12,7 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
+	"github.com/ethereum-optimism/optimism/op-e2e/config"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-node/testutils/fuzzerutils"
@@ -51,8 +52,11 @@ func TestGasPriceOracleFeeUpdates(t *testing.T) {
 	// l2Verif := sys.Clients["verifier"]
 	ethPrivKey := cfg.Secrets.SysCfgOwner
 
+	systemConfigAddr, err := config.L1Deployments.Get("SystemConfigProxy")
+	require.NoError(t, err)
+
 	// Bind to the SystemConfig & GasPriceOracle contracts
-	sysconfig, err := bindings.NewSystemConfig(predeploys.DevSystemConfigAddr, l1Client)
+	sysconfig, err := bindings.NewSystemConfig(systemConfigAddr, l1Client)
 	require.Nil(t, err)
 	gpoContract, err := bindings.NewGasPriceOracleCaller(predeploys.GasPriceOracleAddr, l2Seq)
 	require.Nil(t, err)
@@ -246,8 +250,11 @@ func TestMixedDepositValidity(t *testing.T) {
 	// Define our L1 transaction timeout duration.
 	txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
 
+	optimismPortalAddr, err := config.L1Deployments.Get("OptimismPortalProxy")
+	require.NoError(t, err)
+
 	// Bind to the deposit contract
-	depositContract, err := bindings.NewOptimismPortal(predeploys.DevOptimismPortalAddr, l1Client)
+	depositContract, err := bindings.NewOptimismPortal(optimismPortalAddr, l1Client)
 	require.NoError(t, err)
 
 	// Create a struct used to track our transactors and their transactions sent.
@@ -402,6 +409,9 @@ func TestMixedDepositValidity(t *testing.T) {
 func TestMixedWithdrawalValidity(t *testing.T) {
 	InitParallel(t)
 
+	optimismPortalAddr, err := config.L1Deployments.Get("OptimismPortalProxy")
+	require.NoError(t, err)
+
 	// There are 7 different fields we try modifying to cause a failure, plus one "good" test result we test.
 	for i := 0; i <= 8; i++ {
 		i := i // avoid loop var capture
@@ -424,8 +434,11 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 			// Define our L1 transaction timeout duration.
 			txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
 
+			optimismPortalAddr, err := config.L1Deployments.Get("OptimismPortalProxy")
+			require.NoError(t, err)
+
 			// Bind to the deposit contract
-			depositContract, err := bindings.NewOptimismPortal(predeploys.DevOptimismPortalAddr, l1Client)
+			depositContract, err := bindings.NewOptimismPortal(optimismPortalAddr, l1Client)
 			_ = depositContract
 			require.NoError(t, err)
 
@@ -511,7 +524,7 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 
 			// Wait for the finalization period, then we can finalize this withdrawal.
 			ctx, cancel = context.WithTimeout(context.Background(), 40*time.Duration(cfg.DeployConfig.L1BlockTime)*time.Second)
-			blockNumber, err := withdrawals.WaitForOutputRootPublished(ctx, l1Client, predeploys.DevOptimismPortalAddr, receipt.BlockNumber)
+			blockNumber, err := withdrawals.WaitForOutputRootPublished(ctx, l1Client, optimismPortalAddr, receipt.BlockNumber)
 			cancel()
 			require.Nil(t, err)
 
@@ -520,7 +533,10 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 			cancel()
 			require.Nil(t, err)
 
-			l2OutputOracle, err := bindings.NewL2OutputOracleCaller(predeploys.DevL2OutputOracleAddr, l1Client)
+			l2OutputOracleAddr, err := config.L1Deployments.Get("L2OutputOracleProxy")
+			require.NoError(t, err)
+
+			l2OutputOracle, err := bindings.NewL2OutputOracleCaller(l2OutputOracleAddr, l1Client)
 			require.Nil(t, err)
 
 			rpcClient, err := rpc.Dial(sys.Nodes["verifier"].WSEndpoint())
@@ -642,7 +658,7 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 				// Wait for finalization and then create the Finalized Withdrawal Transaction
 				ctx, cancel = context.WithTimeout(context.Background(), 45*time.Duration(cfg.DeployConfig.L1BlockTime)*time.Second)
 				defer cancel()
-				err = withdrawals.WaitForFinalizationPeriod(ctx, l1Client, predeploys.DevOptimismPortalAddr, header.Number)
+				err = withdrawals.WaitForFinalizationPeriod(ctx, l1Client, optimismPortalAddr, header.Number)
 				require.Nil(t, err)
 
 				// Finalize withdrawal

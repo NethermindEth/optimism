@@ -6,18 +6,15 @@ import (
 	"path"
 	"time"
 
-	"encoding/json"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/genesis"
+	"github.com/ethereum-optimism/optimism/op-e2e/config"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 )
@@ -32,48 +29,6 @@ func WriteDefaultJWT(t TestingBase) string {
 		t.Fatalf("failed to prepare jwt file for geth: %v", err)
 	}
 	return jwtPath
-}
-
-// ReadAllocs
-func ReadAllocs(filename string) (*state.Dump, error) {
-	_, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return nil, err
-	}
-
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	var dump state.Dump
-	if err := decoder.Decode(&dump); err != nil {
-		return nil, err
-	}
-	return &dump, nil
-}
-
-// ReadDeployments
-func ReadDeployments(filename string) (map[string]common.Address, error) {
-	_, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return nil, err
-	}
-
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	var deployments map[string]common.Address
-	if err := decoder.Decode(&deployments); err != nil {
-		return nil, err
-	}
-	return deployments, nil
 }
 
 func uint64ToBig(in uint64) *hexutil.Big {
@@ -101,73 +56,41 @@ func MakeDeployParams(t require.TestingT, tp *TestParams) *DeployParams {
 	secrets, err := mnemonicCfg.Secrets()
 	require.NoError(t, err)
 	addresses := secrets.Addresses()
-	deployConfig := &genesis.DeployConfig{
-		L1ChainID:   901,
-		L2ChainID:   902,
-		L2BlockTime: 2,
 
-		MaxSequencerDrift:   tp.MaxSequencerDrift,
-		SequencerWindowSize: tp.SequencerWindowSize,
-		ChannelTimeout:      tp.ChannelTimeout,
-		P2PSequencerAddress: addresses.SequencerP2P,
-		BatchInboxAddress:   common.Address{0: 0x42, 19: 0xff}, // tbd
-		BatchSenderAddress:  addresses.Batcher,
-
-		L2OutputOracleSubmissionInterval: 6,
-		L2OutputOracleStartingTimestamp:  -1,
-		L2OutputOracleProposer:           addresses.Proposer,
-		L2OutputOracleChallenger:         common.Address{}, // tbd
-
-		FinalSystemOwner: addresses.SysCfgOwner,
-
-		L1BlockTime:                 tp.L1BlockTime,
-		L1GenesisBlockNonce:         0,
-		CliqueSignerAddress:         common.Address{}, // proof of stake, no clique
-		L1GenesisBlockTimestamp:     hexutil.Uint64(time.Now().Unix()),
-		L1GenesisBlockGasLimit:      30_000_000,
-		L1GenesisBlockDifficulty:    uint64ToBig(1),
-		L1GenesisBlockMixHash:       common.Hash{},
-		L1GenesisBlockCoinbase:      common.Address{},
-		L1GenesisBlockNumber:        0,
-		L1GenesisBlockGasUsed:       0,
-		L1GenesisBlockParentHash:    common.Hash{},
-		L1GenesisBlockBaseFeePerGas: uint64ToBig(1000_000_000), // 1 gwei
-		FinalizationPeriodSeconds:   12,
-
-		L2GenesisBlockNonce:         0,
-		L2GenesisBlockGasLimit:      30_000_000,
-		L2GenesisBlockDifficulty:    uint64ToBig(0),
-		L2GenesisBlockMixHash:       common.Hash{},
-		L2GenesisBlockNumber:        0,
-		L2GenesisBlockGasUsed:       0,
-		L2GenesisBlockParentHash:    common.Hash{},
-		L2GenesisBlockBaseFeePerGas: uint64ToBig(1000_000_000),
-
-		GasPriceOracleOverhead:      2100,
-		GasPriceOracleScalar:        1000_000,
-		DeploymentWaitConfirmations: 1,
-
-		SequencerFeeVaultRecipient:               common.Address{19: 1},
-		BaseFeeVaultRecipient:                    common.Address{19: 2},
-		L1FeeVaultRecipient:                      common.Address{19: 3},
-		BaseFeeVaultMinimumWithdrawalAmount:      uint64ToBig(1000_000_000), // 1 gwei
-		L1FeeVaultMinimumWithdrawalAmount:        uint64ToBig(1000_000_000), // 1 gwei
-		SequencerFeeVaultMinimumWithdrawalAmount: uint64ToBig(1000_000_000), // 1 gwei
-		BaseFeeVaultWithdrawalNetwork:            uint8(1),                  // L2 withdrawal network
-		L1FeeVaultWithdrawalNetwork:              uint8(1),                  // L2 withdrawal network
-		SequencerFeeVaultWithdrawalNetwork:       uint8(1),                  // L2 withdrawal network
-
-		EIP1559Elasticity:  10,
-		EIP1559Denominator: 50,
-
-		FundDevAccounts: false,
-	}
-
-	// Configure the DeployConfig with the expected developer L1
-	// addresses.
-	if err := deployConfig.InitDeveloperDeployedAddresses(); err != nil {
-		panic(err)
-	}
+	deployConfig := config.DeployConfig
+	deployConfig.L2BlockTime = 2
+	deployConfig.MaxSequencerDrift = tp.MaxSequencerDrift
+	deployConfig.SequencerWindowSize = tp.SequencerWindowSize
+	deployConfig.ChannelTimeout = tp.ChannelTimeout
+	deployConfig.P2PSequencerAddress = addresses.SequencerP2P
+	deployConfig.BatchSenderAddress = addresses.Batcher
+	deployConfig.L2OutputOracleSubmissionInterval = 6
+	deployConfig.L2OutputOracleStartingTimestamp = -1
+	deployConfig.L2OutputOracleProposer = addresses.Proposer
+	deployConfig.FinalSystemOwner = addresses.SysCfgOwner
+	deployConfig.L1BlockTime = tp.L1BlockTime
+	deployConfig.L1GenesisBlockNonce = 0
+	deployConfig.L1GenesisBlockTimestamp = hexutil.Uint64(time.Now().Unix())
+	deployConfig.L1GenesisBlockGasLimit = 30_000_000
+	deployConfig.L1GenesisBlockDifficulty = uint642big(1)
+	deployConfig.L1GenesisBlockMixHash = common.Hash{}
+	deployConfig.L1GenesisBlockCoinbase = common.Address{}
+	deployConfig.L1GenesisBlockNumber = 0
+	deployConfig.L1GenesisBlockGasUsed = 0
+	deployConfig.L1GenesisBlockParentHash = common.Hash{}
+	deployConfig.L1GenesisBlockBaseFeePerGas = uint642big(1000_000_000)
+	deployConfig.FinalizationPeriodSeconds = 12
+	deployConfig.L2GenesisBlockNonce = 0
+	deployConfig.L2GenesisBlockGasLimit = 30_000_000
+	deployConfig.L2GenesisBlockDifficulty = uint642big(0)
+	deployConfig.L2GenesisBlockMixHash = common.Hash{}
+	deployConfig.L2GenesisBlockNumber = 0
+	deployConfig.L2GenesisBlockGasUsed = 0
+	deployConfig.L2GenesisBlockParentHash = common.Hash{}
+	deployConfig.L2GenesisBlockBaseFeePerGas = uint642big(1000_000_000)
+	deployConfig.EIP1559Elasticity = 10
+	deployConfig.EIP1559Denominator = 50
+	deployConfig.FundDevAccounts = false
 
 	return &DeployParams{
 		DeployConfig:   deployConfig,
@@ -216,11 +139,7 @@ func Ether(v uint64) *big.Int {
 func Setup(t require.TestingT, deployParams *DeployParams, alloc *AllocParams) *SetupData {
 	deployConf := deployParams.DeployConfig
 
-	// TODO: figure out path handling...
-	fp := "/home/tynes/Projects/github.com/ethereum-optimism/optimism/.devnet/allocs-l1.json"
-	dump, err := ReadAllocs(fp)
-	require.NoError(t, err, "failed to read l1 allocs")
-
+	dump := config.L1Allocs
 	l1Genesis, err := genesis.BuildL1DeveloperGenesis(deployConf, dump)
 	require.NoError(t, err, "failed to create l1 genesis")
 	if alloc.PrefundTestUsers {
@@ -269,17 +188,20 @@ func Setup(t require.TestingT, deployParams *DeployParams, alloc *AllocParams) *
 		L1ChainID:              new(big.Int).SetUint64(deployConf.L1ChainID),
 		L2ChainID:              new(big.Int).SetUint64(deployConf.L2ChainID),
 		BatchInboxAddress:      deployConf.BatchInboxAddress,
-		DepositContractAddress: predeploys.DevOptimismPortalAddr,
-		L1SystemConfigAddress:  predeploys.DevSystemConfigAddr,
+		DepositContractAddress: deployConf.OptimismPortalProxy,
+		L1SystemConfigAddress:  deployConf.SystemConfigProxy,
 		RegolithTime:           deployConf.RegolithTime(uint64(deployConf.L1GenesisBlockTimestamp)),
 	}
 
+	l2OutputOracleProxy, err := config.L1Deployments.Get("L2OutputOracleProxy")
+	require.NoError(t, err, "failed to get L2OutputOracleProxy address")
+
 	deploymentsL1 := DeploymentsL1{
-		L1CrossDomainMessengerProxy: predeploys.DevL1CrossDomainMessengerAddr,
-		L1StandardBridgeProxy:       predeploys.DevL1StandardBridgeAddr,
-		L2OutputOracleProxy:         predeploys.DevL2OutputOracleAddr,
-		OptimismPortalProxy:         predeploys.DevOptimismPortalAddr,
-		SystemConfigProxy:           predeploys.DevSystemConfigAddr,
+		L1CrossDomainMessengerProxy: deployConf.L1CrossDomainMessengerProxy,
+		L1StandardBridgeProxy:       deployConf.L1StandardBridgeProxy,
+		L2OutputOracleProxy:         l2OutputOracleProxy,
+		OptimismPortalProxy:         deployConf.OptimismPortalProxy,
+		SystemConfigProxy:           deployConf.SystemConfigProxy,
 	}
 
 	// Sanity check that the config is correct
@@ -345,4 +267,10 @@ func ForkedDeployConfig(t require.TestingT, mnemonicCfg *MnemonicConfig, startBl
 		FundDevAccounts:             true,
 	}
 	return out
+}
+
+func uint642big(in uint64) *hexutil.Big {
+	b := new(big.Int).SetUint64(in)
+	hu := hexutil.Big(*b)
+	return &hu
 }
