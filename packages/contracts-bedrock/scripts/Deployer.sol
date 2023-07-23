@@ -441,7 +441,7 @@ abstract contract Deployer is Script {
             return "optimism-goerli";
         } else if (chainid == 10) {
             return "optimism-mainnet";
-        } else if (chainid == 900) {
+        } else if (chainid == 900 || chainid == 1337) {
             return "devnetL1";
         } else if (chainid == 31337) {
             return "hardhat";

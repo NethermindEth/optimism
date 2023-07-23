@@ -20,3 +20,4 @@ deployments/hardhat
 !.envrc.example
 deployments/getting-started
 deployments/*/.deploy
+deployments/1337

@@ -355,7 +355,13 @@ func (cfg SystemConfig) Start(_opts ...SystemConfigOption) (*System, error) {
 		c = sys.TimeTravelClock
 	}
 
-	l1Genesis, err := genesis.BuildL1DeveloperGenesis(cfg.DeployConfig)
+	fp := "/home/tynes/Projects/github.com/ethereum-optimism/optimism/.devnet/allocs-l1.json"
+	dump, err := e2eutils.ReadAllocs(fp)
+	if err != nil {
+		return nil, err
+	}
+
+	l1Genesis, err := genesis.BuildL1DeveloperGenesis(cfg.DeployConfig, dump)
 	if err != nil {
 		return nil, err
 	}

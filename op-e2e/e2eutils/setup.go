@@ -6,9 +6,12 @@ import (
 	"path"
 	"time"
 
+	"encoding/json"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
@@ -29,6 +32,48 @@ func WriteDefaultJWT(t TestingBase) string {
 		t.Fatalf("failed to prepare jwt file for geth: %v", err)
 	}
 	return jwtPath
+}
+
+// ReadAllocs
+func ReadAllocs(filename string) (*state.Dump, error) {
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return nil, err
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	var dump state.Dump
+	if err := decoder.Decode(&dump); err != nil {
+		return nil, err
+	}
+	return &dump, nil
+}
+
+// ReadDeployments
+func ReadDeployments(filename string) (map[string]common.Address, error) {
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return nil, err
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	var deployments map[string]common.Address
+	if err := decoder.Decode(&deployments); err != nil {
+		return nil, err
+	}
+	return deployments, nil
 }
 
 func uint64ToBig(in uint64) *hexutil.Big {
@@ -170,7 +215,13 @@ func Ether(v uint64) *big.Int {
 // Setup computes the testing setup configurations from deployment configuration and optional allocation parameters.
 func Setup(t require.TestingT, deployParams *DeployParams, alloc *AllocParams) *SetupData {
 	deployConf := deployParams.DeployConfig
-	l1Genesis, err := genesis.BuildL1DeveloperGenesis(deployConf)
+
+	// TODO: figure out path handling...
+	fp := "/home/tynes/Projects/github.com/ethereum-optimism/optimism/.devnet/allocs-l1.json"
+	dump, err := ReadAllocs(fp)
+	require.NoError(t, err, "failed to read l1 allocs")
+
+	l1Genesis, err := genesis.BuildL1DeveloperGenesis(deployConf, dump)
 	require.NoError(t, err, "failed to create l1 genesis")
 	if alloc.PrefundTestUsers {
 		for _, addr := range deployParams.Addresses.All() {

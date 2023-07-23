@@ -49,7 +49,16 @@ type OpGeth struct {
 
 func NewOpGeth(t *testing.T, ctx context.Context, cfg *SystemConfig) (*OpGeth, error) {
 	logger := testlog.Logger(t, log.LvlCrit)
-	l1Genesis, err := genesis.BuildL1DeveloperGenesis(cfg.DeployConfig)
+
+	fp := "/home/tynes/Projects/github.com/ethereum-optimism/optimism/.devnet/allocs-l1.json"
+	dump, err := e2eutils.ReadAllocs(fp)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: read the L1 contract addresses
+
+	l1Genesis, err := genesis.BuildL1DeveloperGenesis(cfg.DeployConfig, dump)
 	require.Nil(t, err)
 	l1Block := l1Genesis.ToBlock()
 

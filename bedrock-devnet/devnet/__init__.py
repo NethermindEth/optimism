@@ -9,6 +9,7 @@ import datetime
 import time
 import shutil
 import http.client
+import multiprocessing
 
 import devnet.log_setup
 from devnet.genesis import GENESIS_TMPL
@@ -18,6 +19,7 @@ pjoin = os.path.join
 parser = argparse.ArgumentParser(description='Bedrock devnet launcher')
 parser.add_argument('--monorepo-dir', help='Directory of the monorepo', default=os.getcwd())
 parser.add_argument('--deploy', help='Whether the contracts should be predeployed or deployed', type=bool, action=argparse.BooleanOptionalAction)
+parser.add_argument('--allocs', help='Path to the allocs file', type=bool, action=argparse.BooleanOptionalAction)
 
 log = logging.getLogger()
 
@@ -45,12 +47,17 @@ def main():
       ops_bedrock_dir=ops_bedrock_dir,
       genesis_l1_path=pjoin(devnet_dir, 'genesis-l1.json'),
       genesis_l2_path=pjoin(devnet_dir, 'genesis-l2.json'),
+      allocs_path=pjoin(devnet_dir, 'allocs-l1.json'),
       addresses_json_path=pjoin(devnet_dir, 'addresses.json'),
       sdk_addresses_json_path=pjoin(devnet_dir, 'sdk-addresses.json'),
       rollup_config_path=pjoin(devnet_dir, 'rollup.json')
     )
 
     os.makedirs(devnet_dir, exist_ok=True)
+
+    if args.allocs:
+        devnet_l1_genesis(paths)
+        return
 
     run_command(['docker-compose', 'build', '--progress', 'plain'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
@@ -62,6 +69,40 @@ def main():
     else:
       log.info('Devnet with smart contracts pre-deployed')
       devnet_prestate(paths)
+
+def deploy_contracts(paths):
+    def internal():
+        wait_up(8545)
+        wait_for_rpc_server('127.0.0.1:8545')
+        res = eth_accounts('127.0.0.1:8545')
+
+        response = json.loads(res)
+        account = response['result'][0]
+
+        fqn = 'scripts/Deploy.s.sol:Deploy'
+        run_command([
+            'forge', 'script', fqn, '--sender', account,
+            '--rpc-url', 'http://127.0.0.1:8545', '--broadcast',
+            '--unlocked'
+        ], env={}, cwd=paths.contracts_bedrock_dir)
+
+    return internal
+
+
+def devnet_l1_genesis(paths):
+    geth = subprocess.Popen(['geth', '--dev', '--http', '--http.api', 'eth,debug', '--verbosity', '4', '--gcmode', 'archive'])
+
+    forge = multiprocessing.Process(target=deploy_contracts(paths))
+    forge.start()
+    forge.join()
+
+    res = debug_dumpBlock('127.0.0.1:8545')
+    response = json.loads(res)
+    allocs = response['result']
+
+    write_json(paths.allocs_path, allocs)
+    geth.terminate()
+
 
 # Bring up the devnet where the L1 contracts are in the genesis state
 def devnet_prestate(paths):
@@ -207,6 +248,27 @@ def devnet_deploy(paths):
 
     log.info('Devnet ready.')
 
+def eth_accounts(url):
+    log.info(f'Fetch eth_accounts {url}')
+    conn = http.client.HTTPConnection(url)
+    headers = {'Content-type': 'application/json'}
+    body = '{"id":2, "jsonrpc":"2.0", "method": "eth_accounts", "params":[]}'
+    conn.request('POST', '/', body, headers)
+    response = conn.getresponse()
+    data = response.read().decode()
+    conn.close()
+    return data
+
+def debug_dumpBlock(url):
+    log.info(f'Fetch debug_dumpBlock {url}')
+    conn = http.client.HTTPConnection(url)
+    headers = {'Content-type': 'application/json'}
+    body = '{"id":3, "jsonrpc":"2.0", "method": "debug_dumpBlock", "params":["latest"]}'
+    conn.request('POST', '/', body, headers)
+    response = conn.getresponse()
+    data = response.read().decode()
+    conn.close()
+    return data
 
 def wait_for_rpc_server(url):
     log.info(f'Waiting for RPC server at {url}')
