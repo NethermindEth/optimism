@@ -434,9 +434,6 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 			// Define our L1 transaction timeout duration.
 			txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
 
-			optimismPortalAddr, err := config.L1Deployments.Get("OptimismPortalProxy")
-			require.NoError(t, err)
-
 			// Bind to the deposit contract
 			depositContract, err := bindings.NewOptimismPortal(optimismPortalAddr, l1Client)
 			_ = depositContract
