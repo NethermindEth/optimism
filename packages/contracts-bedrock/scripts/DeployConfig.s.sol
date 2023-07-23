@@ -89,7 +89,7 @@ contract DeployConfig is Script {
         eip1559Denominator = stdJson.readUint(_json, "$.eip1559Denominator");
         eip1559Elasticity = stdJson.readUint(_json, "$.eip1559Elasticity");
 
-        if (block.chainid == 900) {
+        if (block.chainid == 900 || block.chainid == 1337) {
             faultGameAbsolutePrestate = stdJson.readUint(_json, "$.faultGameAbsolutePrestate");
             faultGameMaxDepth = stdJson.readUint(_json, "$.faultGameMaxDepth");
             faultGameMaxDuration = stdJson.readUint(_json, "$.faultGameMaxDuration");

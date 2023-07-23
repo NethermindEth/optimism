@@ -137,9 +137,6 @@ func init() {
 	for k, v := range L1Deployments {
 		fmt.Printf("%s: %s\n", k, v)
 	}
-
-	// TODO: completely remove this
-	DeployConfig.CliqueSignerAddress = common.Address{}
 }
 
 // findMonorepoRoot will recursively search upwards for a go.mod file.

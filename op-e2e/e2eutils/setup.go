@@ -257,7 +257,6 @@ func ForkedDeployConfig(t require.TestingT, mnemonicCfg *MnemonicConfig, startBl
 		L2GenesisBlockBaseFeePerGas: uint64ToBig(0x3B9ACA00),
 		L2GenesisBlockDifficulty:    uint64ToBig(0),
 		L1BlockTime:                 12,
-		CliqueSignerAddress:         addrs.CliqueSigner,
 		FinalizationPeriodSeconds:   2,
 		DeploymentWaitConfirmations: 1,
 		EIP1559Elasticity:           10,

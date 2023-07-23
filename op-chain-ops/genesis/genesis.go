@@ -130,6 +130,7 @@ func NewL1Genesis(config *DeployConfig) (*core.Genesis, error) {
 		ShanghaiTime:        u64ptr(0),
 	}
 
+	extraData := make([]byte, 0)
 	if config.CliqueSignerAddress != (common.Address{}) {
 		// warning: clique has an overly strict block header timestamp check against the system wallclock,
 		// causing blocks to get scheduled as "future block" and not get mined instantly when produced.
@@ -137,6 +138,7 @@ func NewL1Genesis(config *DeployConfig) (*core.Genesis, error) {
 			Period: config.L1BlockTime,
 			Epoch:  30000,
 		}
+		extraData = append(append(make([]byte, 32), config.CliqueSignerAddress[:]...), make([]byte, crypto.SignatureLength)...)
 	} else {
 		chainConfig.MergeNetsplitBlock = big.NewInt(0)
 		chainConfig.TerminalTotalDifficulty = big.NewInt(0)
@@ -158,11 +160,6 @@ func NewL1Genesis(config *DeployConfig) (*core.Genesis, error) {
 	timestamp := config.L1GenesisBlockTimestamp
 	if timestamp == 0 {
 		timestamp = hexutil.Uint64(time.Now().Unix())
-	}
-
-	extraData := make([]byte, 0)
-	if config.CliqueSignerAddress != (common.Address{}) {
-		extraData = append(append(make([]byte, 32), config.CliqueSignerAddress[:]...), make([]byte, crypto.SignatureLength)...)
 	}
 
 	return &core.Genesis{
