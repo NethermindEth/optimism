@@ -888,6 +888,12 @@ jobs:
           name: prep results dir
           command: mkdir -p /tmp/test-results
       - run:
+          name: install geth
+          command: make install-geth
+      - run:
+          name: generate L1 state
+          command: make devnet-allocs
+      - run:
           name: run tests
           command: |
             # Note: We don't use circle CI test splits because we need to split by test name, not by package. There is an additional
