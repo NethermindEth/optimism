@@ -74,20 +74,22 @@ func BuildL1DeveloperGenesis(config *DeployConfig, dump *gstate.Dump) (*core.Gen
 	FundDevAccounts(memDB)
 	SetPrecompileBalances(memDB)
 
-	log.Info("Building developer L1 genesis block")
-	for address, account := range dump.Accounts {
-		log.Info("Setting account", "address", address.Hex())
-		memDB.CreateAccount(address)
-		memDB.SetNonce(address, account.Nonce)
+	if dump != nil {
+		log.Info("Building developer L1 genesis block")
+		for address, account := range dump.Accounts {
+			log.Info("Setting account", "address", address.Hex())
+			memDB.CreateAccount(address)
+			memDB.SetNonce(address, account.Nonce)
 
-		balance, ok := new(big.Int).SetString(account.Balance, 10)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse balance for %s", address)
-		}
-		memDB.AddBalance(address, balance)
-		memDB.SetCode(address, account.Code)
-		for key, value := range account.Storage {
-			memDB.SetState(address, key, common.HexToHash(value))
+			balance, ok := new(big.Int).SetString(account.Balance, 10)
+			if !ok {
+				return nil, fmt.Errorf("failed to parse balance for %s", address)
+			}
+			memDB.AddBalance(address, balance)
+			memDB.SetCode(address, account.Code)
+			for key, value := range account.Storage {
+				memDB.SetState(address, key, common.HexToHash(value))
+			}
 		}
 	}
 	return memDB.Genesis(), nil

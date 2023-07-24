@@ -57,7 +57,8 @@ var Subcommands = cli.Commands{
 				return err
 			}
 
-			l1Genesis, err := genesis.BuildL1DeveloperGenesis(config)
+			// TODO: this needs new inputs now to be able to create an L1 genesis
+			l1Genesis, err := genesis.BuildL1DeveloperGenesis(config, nil)
 			if err != nil {
 				return err
 			}
