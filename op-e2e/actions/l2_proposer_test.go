@@ -4,6 +4,9 @@ import (
 	"math/big"
 	"testing"
 
+	"fmt"
+
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
@@ -21,6 +24,8 @@ func TestProposer(gt *testing.T) {
 	log := testlog.Logger(t, log.LvlDebug)
 	miner, seqEngine, sequencer := setupSequencerTest(t, sd, log)
 
+	require.Equal(t, dp.Secrets.Addresses().Batcher, dp.DeployConfig.BatchSenderAddress)
+
 	rollupSeqCl := sequencer.RollupClient()
 	batcher := NewL2Batcher(log, sd.RollupCfg, &BatcherCfg{
 		MinL1TxSize: 0,
@@ -28,33 +33,41 @@ func TestProposer(gt *testing.T) {
 		BatcherKey:  dp.Secrets.Batcher,
 	}, rollupSeqCl, miner.EthClient(), seqEngine.EthClient())
 
+	l2OutputOracleProxyAddr, err := sd.DeploymentsL1.Get("L2OutputOracleProxy")
+	require.NoError(t, err)
+
 	proposer := NewL2Proposer(t, log, &ProposerCfg{
-		OutputOracleAddr:  sd.DeploymentsL1.L2OutputOracleProxy,
+		OutputOracleAddr:  l2OutputOracleProxyAddr,
 		ProposerKey:       dp.Secrets.Proposer,
 		AllowNonFinalized: false,
 	}, miner.EthClient(), sequencer.RollupClient())
 
-	// L1 block
-	miner.ActEmptyBlock(t)
-	// L2 block
-	sequencer.ActL1HeadSignal(t)
-	sequencer.ActL2PipelineFull(t)
-	sequencer.ActBuildToL1Head(t)
-	// submit and include in L1
-	batcher.ActSubmitAll(t)
-	miner.ActL1StartBlock(12)(t)
-	miner.ActL1IncludeTx(dp.Addresses.Batcher)(t)
-	miner.ActL1EndBlock(t)
-	// finalize the first and second L1 blocks, including the batch
-	miner.ActL1SafeNext(t)
-	miner.ActL1SafeNext(t)
-	miner.ActL1FinalizeNext(t)
-	miner.ActL1FinalizeNext(t)
-	// derive and see the L2 chain fully finalize
-	sequencer.ActL2PipelineFull(t)
-	sequencer.ActL1SafeSignal(t)
-	sequencer.ActL1FinalizedSignal(t)
-	require.Equal(t, sequencer.SyncStatus().UnsafeL2, sequencer.SyncStatus().FinalizedL2)
+	for !proposer.CanPropose(t) {
+		// L1 block
+		miner.ActEmptyBlock(t)
+		// L2 block
+		sequencer.ActL1HeadSignal(t)
+		sequencer.ActL2PipelineFull(t)
+		sequencer.ActBuildToL1Head(t)
+		// submit and include in L1
+		batcher.ActSubmitAll(t)
+		miner.ActL1StartBlock(12)(t)
+		miner.ActL1IncludeTx(dp.Addresses.Batcher)(t)
+		miner.ActL1EndBlock(t)
+		// finalize the first and second L1 blocks, including the batch
+		miner.ActL1SafeNext(t)
+		miner.ActL1SafeNext(t)
+		miner.ActL1FinalizeNext(t)
+		miner.ActL1FinalizeNext(t)
+		// derive and see the L2 chain fully finalize
+		sequencer.ActL2PipelineFull(t)
+		sequencer.ActL1SafeSignal(t)
+		sequencer.ActL1FinalizedSignal(t)
+		require.Equal(t, sequencer.SyncStatus().UnsafeL2, sequencer.SyncStatus().FinalizedL2)
+	}
+
+	require.True(t, proposer.CanPropose(t))
+
 	// make proposals until there is nothing left to propose
 	for proposer.CanPropose(t) {
 		// and propose it to L1
@@ -67,13 +80,29 @@ func TestProposer(gt *testing.T) {
 		receipt, err := miner.EthClient().TransactionReceipt(t.Ctx(), proposer.LastProposalTx())
 		require.NoError(t, err)
 		require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "proposal failed")
+
+		// Can confirm that it is being posted successfully
+		// The correct event is emitted from the correct address
+		/*
+			fmt.Printf("%#v\n", receipt)
+			for _, l := range receipt.Logs {
+				fmt.Printf("%#v\n", l)
+			}
+		*/
 	}
 
 	// check that L1 stored the expected output root
-	outputOracleContract, err := bindings.NewL2OutputOracle(sd.DeploymentsL1.L2OutputOracleProxy, miner.EthClient())
+	outputOracleContract, err := bindings.NewL2OutputOracle(l2OutputOracleProxyAddr, miner.EthClient())
 	require.NoError(t, err)
-	block := sequencer.SyncStatus().FinalizedL2
-	outputOnL1, err := outputOracleContract.GetL2OutputAfter(nil, new(big.Int).SetUint64(block.Number))
+
+	idx, err := outputOracleContract.LatestBlockNumber(&bind.CallOpts{})
+	require.NoError(t, err)
+	require.Greater(t, int64(idx.Uint64()), int64(0), "output index must be greater than 0")
+	fmt.Println("==============", idx)
+
+	block := sequencer.SyncStatus().SafeL2
+	log.Info("checking output root", "block", block.Number)
+	outputOnL1, err := outputOracleContract.GetL2OutputAfter(&bind.CallOpts{}, new(big.Int).SetUint64(block.Number))
 	require.NoError(t, err)
 	require.Less(t, block.Time, outputOnL1.Timestamp.Uint64(), "output is registered with L1 timestamp of proposal tx, past L2 block")
 	outputComputed, err := sequencer.RollupClient().OutputAtBlock(t.Ctx(), block.Number)

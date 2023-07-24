@@ -273,6 +273,7 @@ func (l *L2OutputSubmitter) FetchNextOutputInfo(ctx context.Context) (*eth.Outpu
 		return nil, false, nil
 	}
 
+	l.log.Trace("proposer submitting proposal", "nextCheckpointBlock", nextCheckpointBlock)
 	return l.fetchOutput(ctx, nextCheckpointBlock)
 }
 
@@ -302,6 +303,7 @@ func (l *L2OutputSubmitter) fetchOutput(ctx context.Context, block *big.Int) (*e
 			"allow_non_finalized", l.allowNonFinalized)
 		return nil, false, nil
 	}
+	l.log.Info("proposing L2 output", "block", output.BlockRef.Number, "root", output.OutputRoot)
 	return output, true, nil
 }
 

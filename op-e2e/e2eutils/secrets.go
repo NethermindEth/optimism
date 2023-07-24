@@ -16,10 +16,9 @@ import (
 // to export all testing keys in external tooling for use during debugging.
 var DefaultMnemonicConfig = &MnemonicConfig{
 	Mnemonic:     "test test test test test test test test test test test junk",
-	Deployer:     "m/44'/60'/0'/0/1",
-	CliqueSigner: "m/44'/60'/0'/0/2",
-	Proposer:     "m/44'/60'/0'/0/3",
-	Batcher:      "m/44'/60'/0'/0/4",
+	Proposer:     "m/44'/60'/0'/0/1",
+	Batcher:      "m/44'/60'/0'/0/2",
+	Deployer:     "m/44'/60'/0'/0/3",
 	SequencerP2P: "m/44'/60'/0'/0/5",
 	Alice:        "m/44'/60'/0'/0/6",
 	Bob:          "m/44'/60'/0'/0/7",
@@ -32,9 +31,8 @@ var DefaultMnemonicConfig = &MnemonicConfig{
 type MnemonicConfig struct {
 	Mnemonic string
 
-	Deployer     string
-	CliqueSigner string
-	SysCfgOwner  string
+	Deployer    string
+	SysCfgOwner string
 
 	// rollup actors
 	Proposer     string
@@ -59,10 +57,6 @@ func (m *MnemonicConfig) Secrets() (*Secrets, error) {
 	}
 
 	deployer, err := wallet.PrivateKey(account(m.Deployer))
-	if err != nil {
-		return nil, err
-	}
-	cliqueSigner, err := wallet.PrivateKey(account(m.CliqueSigner))
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +91,6 @@ func (m *MnemonicConfig) Secrets() (*Secrets, error) {
 
 	return &Secrets{
 		Deployer:     deployer,
-		CliqueSigner: cliqueSigner,
 		SysCfgOwner:  sysCfgOwner,
 		Proposer:     proposer,
 		Batcher:      batcher,
@@ -111,9 +104,8 @@ func (m *MnemonicConfig) Secrets() (*Secrets, error) {
 
 // Secrets bundles secp256k1 private keys for all common rollup actors for testing purposes.
 type Secrets struct {
-	Deployer     *ecdsa.PrivateKey
-	CliqueSigner *ecdsa.PrivateKey
-	SysCfgOwner  *ecdsa.PrivateKey
+	Deployer    *ecdsa.PrivateKey
+	SysCfgOwner *ecdsa.PrivateKey
 
 	// rollup actors
 	Proposer     *ecdsa.PrivateKey
@@ -146,7 +138,6 @@ func EncodePrivKeyToString(priv *ecdsa.PrivateKey) string {
 func (s *Secrets) Addresses() *Addresses {
 	return &Addresses{
 		Deployer:     crypto.PubkeyToAddress(s.Deployer.PublicKey),
-		CliqueSigner: crypto.PubkeyToAddress(s.CliqueSigner.PublicKey),
 		SysCfgOwner:  crypto.PubkeyToAddress(s.SysCfgOwner.PublicKey),
 		Proposer:     crypto.PubkeyToAddress(s.Proposer.PublicKey),
 		Batcher:      crypto.PubkeyToAddress(s.Batcher.PublicKey),
@@ -163,9 +154,6 @@ func (s *Secrets) String() string {
 	out += "Deployer:\n"
 	out += fmt.Sprintf("  - address:   %s\n", addresses.Deployer.Hex())
 	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.Deployer))
-	out += "CliqueSigner:\n"
-	out += fmt.Sprintf("  - address:   %s\n", addresses.CliqueSigner.Hex())
-	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.CliqueSigner))
 	out += "SysCfgOwner:\n"
 	out += fmt.Sprintf("  - address:   %s\n", addresses.SysCfgOwner.Hex())
 	out += fmt.Sprintf("  - key:       %s\n", EncodePrivKey(s.SysCfgOwner))
@@ -192,9 +180,8 @@ func (s *Secrets) String() string {
 
 // Addresses bundles the addresses for all common rollup addresses for testing purposes.
 type Addresses struct {
-	Deployer     common.Address
-	CliqueSigner common.Address
-	SysCfgOwner  common.Address
+	Deployer    common.Address
+	SysCfgOwner common.Address
 
 	// rollup actors
 	Proposer     common.Address
@@ -210,7 +197,6 @@ type Addresses struct {
 func (a *Addresses) All() []common.Address {
 	return []common.Address{
 		a.Deployer,
-		a.CliqueSigner,
 		a.SysCfgOwner,
 		a.Proposer,
 		a.Batcher,

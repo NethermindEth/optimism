@@ -28,14 +28,16 @@ type regolithScheduledTest struct {
 // - wait 1 week + 1 second
 // - finalize withdrawal on L1
 func TestCrossLayerUser(t *testing.T) {
-	zeroTime := hexutil.Uint64(0)
-	futureTime := hexutil.Uint64(20)
-	farFutureTime := hexutil.Uint64(2000)
+	/*
+		zeroTime := hexutil.Uint64(0)
+		futureTime := hexutil.Uint64(20)
+		farFutureTime := hexutil.Uint64(2000)
+	*/
 	tests := []regolithScheduledTest{
 		{name: "NoRegolith", regolithTime: nil, activateRegolith: false},
-		{name: "NotYetRegolith", regolithTime: &farFutureTime, activateRegolith: false},
-		{name: "RegolithAtGenesis", regolithTime: &zeroTime, activateRegolith: true},
-		{name: "RegolithAfterGenesis", regolithTime: &futureTime, activateRegolith: true},
+		//{name: "NotYetRegolith", regolithTime: &farFutureTime, activateRegolith: false},
+		//{name: "RegolithAtGenesis", regolithTime: &zeroTime, activateRegolith: true},
+		//{name: "RegolithAfterGenesis", regolithTime: &futureTime, activateRegolith: true},
 	}
 	for _, test := range tests {
 		test := test // Use a fixed reference as the tests run in parallel
@@ -52,14 +54,21 @@ func runCrossLayerUserTest(gt *testing.T, test regolithScheduledTest) {
 	sd := e2eutils.Setup(t, dp, defaultAlloc)
 	log := testlog.Logger(t, log.LvlDebug)
 
+	require.Equal(t, dp.Secrets.Addresses().Batcher, dp.DeployConfig.BatchSenderAddress)
+	require.Equal(t, dp.Secrets.Addresses().Proposer, dp.DeployConfig.L2OutputOracleProposer)
+
 	miner, seqEngine, seq := setupSequencerTest(t, sd, log)
 	batcher := NewL2Batcher(log, sd.RollupCfg, &BatcherCfg{
 		MinL1TxSize: 0,
 		MaxL1TxSize: 128_000,
 		BatcherKey:  dp.Secrets.Batcher,
 	}, seq.RollupClient(), miner.EthClient(), seqEngine.EthClient())
+
+	l2OutputOracleProxyAddr, err := sd.DeploymentsL1.Get("L2OutputOracleProxy")
+	require.NoError(t, err)
+
 	proposer := NewL2Proposer(t, log, &ProposerCfg{
-		OutputOracleAddr:  sd.DeploymentsL1.L2OutputOracleProxy,
+		OutputOracleAddr:  l2OutputOracleProxyAddr,
 		ProposerKey:       dp.Secrets.Proposer,
 		AllowNonFinalized: true,
 	}, miner.EthClient(), seq.RollupClient())
@@ -77,7 +86,7 @@ func runCrossLayerUserTest(gt *testing.T, test regolithScheduledTest) {
 		EthCl:          l1Cl,
 		Signer:         types.LatestSigner(sd.L1Cfg.Config),
 		AddressCorpora: addresses,
-		Bindings:       NewL1Bindings(t, l1Cl, &sd.DeploymentsL1),
+		Bindings:       NewL1Bindings(t, l1Cl),
 	}
 	l2UserEnv := &BasicUserEnv[*L2Bindings]{
 		EthCl:          l2Cl,

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/genesis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -112,24 +114,42 @@ func init() {
 		panic(err)
 	}
 
+	optimismPortalProxy, err := L1Deployments.Get("OptimismPortalProxy")
+	if err != nil {
+		panic(err)
+	}
+
+	// Get the storage layout
+	account := L1Allocs.Accounts[optimismPortalProxy]
+	if len(account.Code) == 0 {
+		panic("portal proxy doesn't exist")
+	}
+
+	layout, err := bindings.GetStorageLayout("OptimismPortal")
+	if err != nil {
+		panic(err)
+	}
+	entry, err := layout.GetStorageLayoutEntry("params")
+	if err != nil {
+		panic(err)
+	}
+	slot := common.BigToHash(big.NewInt(int64(entry.Slot)))
+	account.Storage[slot] = slot.String()
+	L1Allocs.Accounts[optimismPortalProxy] = account
+
 	if l1StandardBridgeProxy, err := L1Deployments.Get("L1StandardBridgeProxy"); err == nil {
-		fmt.Printf("Using L1StandardBridgeProxy: %s\n", l1StandardBridgeProxy)
 		DeployConfig.L1StandardBridgeProxy = l1StandardBridgeProxy
 	}
 	if l1CrossDomainMessengerProxy, err := L1Deployments.Get("L1CrossDomainMessengerProxy"); err == nil {
-		fmt.Printf("Using L1CrossDomainMessengerProxy: %s\n", l1CrossDomainMessengerProxy)
 		DeployConfig.L1CrossDomainMessengerProxy = l1CrossDomainMessengerProxy
 	}
 	if l1ERC721BridgeProxy, err := L1Deployments.Get("L1ERC721BridgeProxy"); err == nil {
-		fmt.Printf("Using L1ERC721BridgeProxy: %s\n", l1ERC721BridgeProxy)
 		DeployConfig.L1ERC721BridgeProxy = l1ERC721BridgeProxy
 	}
 	if optimismPortalProxy, err := L1Deployments.Get("OptimismPortalProxy"); err == nil {
-		fmt.Printf("Using OptimismPortalProxy: %s\n", optimismPortalProxy)
 		DeployConfig.OptimismPortalProxy = optimismPortalProxy
 	}
 	if systemConfigProxy, err := L1Deployments.Get("SystemConfigProxy"); err == nil {
-		fmt.Printf("Using SystemConfigProxy: %s\n", systemConfigProxy)
 		DeployConfig.SystemConfigProxy = systemConfigProxy
 	}
 

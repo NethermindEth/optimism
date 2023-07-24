@@ -81,9 +81,7 @@ func DefaultSystemConfig(t *testing.T) SystemConfig {
 	require.NoError(t, err)
 	addresses := secrets.Addresses()
 
-	// copy the deploy config
-	// TODO: add a Copy function to the deploy config itself
-	deployConfig := config.DeployConfig
+	deployConfig := config.DeployConfig.Copy()
 
 	// TODO: temp hack to make sure config is the same
 	deployConfig.L2BlockTime = 1

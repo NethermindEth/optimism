@@ -124,8 +124,7 @@ func initL1Geth(cfg *SystemConfig, genesis *core.Genesis, c clock.Clock, opts ..
 		HTTPModules: []string{"debug", "admin", "eth", "txpool", "net", "rpc", "web3", "personal", "engine"},
 	}
 
-	// TODO: cliquesigner can be removed?
-	l1Node, l1Eth, err := createGethNode(false, nodeConfig, ethConfig, []*ecdsa.PrivateKey{cfg.Secrets.CliqueSigner}, opts...)
+	l1Node, l1Eth, err := createGethNode(false, nodeConfig, ethConfig, []*ecdsa.PrivateKey{}, opts...)
 	if err != nil {
 		return nil, nil, err
 	}

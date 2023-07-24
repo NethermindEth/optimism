@@ -72,6 +72,7 @@ func NewL2Proposer(t Testing, log log.Logger, cfg *ProposerCfg, l1 *ethclient.Cl
 
 	dr, err := proposer.NewL2OutputSubmitter(proposerCfg, log, metrics.NoopMetrics)
 	require.NoError(t, err)
+
 	contract, err := bindings.NewL2OutputOracleCaller(cfg.OutputOracleAddr, l1)
 	require.NoError(t, err)
 
@@ -103,6 +104,13 @@ func (p *L2Proposer) sendTx(t Testing, data []byte) {
 	nonce, err := p.l1.NonceAt(t.Ctx(), p.address, nil)
 	require.NoError(t, err)
 
+	// TODO: debugging
+	interval, err := p.contract.SUBMISSIONINTERVAL(&bind.CallOpts{})
+	require.NoError(t, err)
+	latestBlockNumber, err := p.contract.LatestBlockNumber(&bind.CallOpts{})
+	require.NoError(t, err)
+	p.log.Info("send proposal", "interval", interval, "latest block number", latestBlockNumber)
+
 	gasLimit, err := estimateGasPending(t.Ctx(), p.l1, ethereum.CallMsg{
 		From:      p.address,
 		To:        &p.contractAddr,
@@ -126,6 +134,7 @@ func (p *L2Proposer) sendTx(t Testing, data []byte) {
 	require.NoError(t, err, "need to sign tx")
 
 	err = p.l1.SendTransaction(t.Ctx(), tx)
+	log.Info("Proposer sent tx", "hash", tx.Hash(), "to", p.contractAddr)
 	require.NoError(t, err, "need to send tx")
 
 	p.lastTx = tx.Hash()
@@ -167,6 +176,7 @@ func toCallArg(msg ethereum.CallMsg) interface{} {
 func (p *L2Proposer) CanPropose(t Testing) bool {
 	_, shouldPropose, err := p.driver.FetchNextOutputInfo(t.Ctx())
 	require.NoError(t, err)
+	log.Info("Proposer should propose", "shouldPropose", shouldPropose)
 	return shouldPropose
 }
 

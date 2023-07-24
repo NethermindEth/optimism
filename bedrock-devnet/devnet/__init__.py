@@ -90,7 +90,10 @@ def deploy_contracts(paths):
 
 
 def devnet_l1_genesis(paths):
-    geth = subprocess.Popen(['geth', '--dev', '--http', '--http.api', 'eth,debug', '--verbosity', '4', '--gcmode', 'archive'])
+    geth = subprocess.Popen([
+        'geth', '--dev', '--http', '--http.api', 'eth,debug',
+        '--verbosity', '4', '--gcmode', 'archive', '--dev.gaslimit', '30000000'
+    ])
 
     forge = multiprocessing.Process(target=deploy_contracts(paths))
     forge.start()
