@@ -54,11 +54,8 @@ func TestL2OutputSubmitter(t *testing.T) {
 	require.Nil(t, err)
 	rollupClient := sources.NewRollupClient(client.NewBaseRPCClient(rollupRPCClient))
 
-	l2OutputOracleAddr, err := config.L1Deployments.Get("L2OutputOracleProxy")
-	require.NoError(t, err)
-
 	//  OutputOracle is already deployed
-	l2OutputOracle, err := bindings.NewL2OutputOracleCaller(l2OutputOracleAddr, l1Client)
+	l2OutputOracle, err := bindings.NewL2OutputOracleCaller(config.L1Deployments.L2OutputOracleProxy, l1Client)
 	require.Nil(t, err)
 
 	initialOutputBlockNumber, err := l2OutputOracle.LatestBlockNumber(&bind.CallOpts{})

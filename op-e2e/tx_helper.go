@@ -25,11 +25,8 @@ func SendDepositTx(t *testing.T, cfg SystemConfig, l1Client *ethclient.Client, l
 	l2Opts := defaultDepositTxOpts(l1Opts)
 	applyL2Opts(l2Opts)
 
-	optimismPortalAddr, err := config.L1Deployments.Get("OptimismPortalProxy")
-	require.NoError(t, err)
-
 	// Find deposit contract
-	depositContract, err := bindings.NewOptimismPortal(optimismPortalAddr, l1Client)
+	depositContract, err := bindings.NewOptimismPortal(config.L1Deployments.OptimismPortalProxy, l1Client)
 	require.Nil(t, err)
 
 	// Finally send TX
