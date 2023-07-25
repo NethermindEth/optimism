@@ -42,35 +42,33 @@ func TestProposer(gt *testing.T) {
 		AllowNonFinalized: false,
 	}, miner.EthClient(), sequencer.RollupClient())
 
-	for !proposer.CanPropose(t) {
-		// L1 block
-		miner.ActEmptyBlock(t)
-		// L2 block
-		sequencer.ActL1HeadSignal(t)
-		sequencer.ActL2PipelineFull(t)
-		sequencer.ActBuildToL1Head(t)
-		// submit and include in L1
-		batcher.ActSubmitAll(t)
-		miner.ActL1StartBlock(12)(t)
-		miner.ActL1IncludeTx(dp.Addresses.Batcher)(t)
-		miner.ActL1EndBlock(t)
-		// finalize the first and second L1 blocks, including the batch
-		miner.ActL1SafeNext(t)
-		miner.ActL1SafeNext(t)
-		miner.ActL1FinalizeNext(t)
-		miner.ActL1FinalizeNext(t)
-		// derive and see the L2 chain fully finalize
-		sequencer.ActL2PipelineFull(t)
-		sequencer.ActL1SafeSignal(t)
-		sequencer.ActL1FinalizedSignal(t)
-		require.Equal(t, sequencer.SyncStatus().UnsafeL2, sequencer.SyncStatus().FinalizedL2)
-	}
+	// L1 block
+	miner.ActEmptyBlock(t)
+	// L2 block
+	sequencer.ActL1HeadSignal(t)
+	sequencer.ActL2PipelineFull(t)
+	sequencer.ActBuildToL1Head(t)
+	// submit and include in L1
+	batcher.ActSubmitAll(t)
+	miner.ActL1StartBlock(12)(t)
+	miner.ActL1IncludeTx(dp.Addresses.Batcher)(t)
+	miner.ActL1EndBlock(t)
+	// finalize the first and second L1 blocks, including the batch
+	miner.ActL1SafeNext(t)
+	miner.ActL1SafeNext(t)
+	miner.ActL1FinalizeNext(t)
+	miner.ActL1FinalizeNext(t)
+	// derive and see the L2 chain fully finalize
+	sequencer.ActL2PipelineFull(t)
+	sequencer.ActL1SafeSignal(t)
+	sequencer.ActL1FinalizedSignal(t)
+	require.Equal(t, sequencer.SyncStatus().UnsafeL2, sequencer.SyncStatus().FinalizedL2)
 
 	require.True(t, proposer.CanPropose(t))
 
 	// make proposals until there is nothing left to propose
+	// and propose it to L1
 	for proposer.CanPropose(t) {
-		// and propose it to L1
 		proposer.ActMakeProposalTx(t)
 		// include proposal on L1
 		miner.ActL1StartBlock(12)(t)
@@ -80,7 +78,6 @@ func TestProposer(gt *testing.T) {
 		receipt, err := miner.EthClient().TransactionReceipt(t.Ctx(), proposer.LastProposalTx())
 		require.NoError(t, err)
 		require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "proposal failed")
-
 		// Can confirm that it is being posted successfully
 		// The correct event is emitted from the correct address
 		/*
@@ -95,12 +92,16 @@ func TestProposer(gt *testing.T) {
 	outputOracleContract, err := bindings.NewL2OutputOracle(l2OutputOracleProxyAddr, miner.EthClient())
 	require.NoError(t, err)
 
+	ival, err := outputOracleContract.SUBMISSIONINTERVAL(&bind.CallOpts{})
+	require.NoError(t, err)
+	require.Equal(t, ival.Uint64(), dp.DeployConfig.L2OutputOracleSubmissionInterval, "submission interval must match")
+
 	idx, err := outputOracleContract.LatestBlockNumber(&bind.CallOpts{})
 	require.NoError(t, err)
 	require.Greater(t, int64(idx.Uint64()), int64(0), "output index must be greater than 0")
 	fmt.Println("==============", idx)
 
-	block := sequencer.SyncStatus().SafeL2
+	block := sequencer.SyncStatus().FinalizedL2
 	log.Info("checking output root", "block", block.Number)
 	outputOnL1, err := outputOracleContract.GetL2OutputAfter(&bind.CallOpts{}, new(big.Int).SetUint64(block.Number))
 	require.NoError(t, err)

@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"os"
 	"path"
-	"time"
+	//"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -62,35 +62,22 @@ func MakeDeployParams(t require.TestingT, tp *TestParams) *DeployParams {
 	deployConfig.MaxSequencerDrift = tp.MaxSequencerDrift
 	deployConfig.SequencerWindowSize = tp.SequencerWindowSize
 	deployConfig.ChannelTimeout = tp.ChannelTimeout
-	deployConfig.P2PSequencerAddress = addresses.SequencerP2P
-	deployConfig.BatchSenderAddress = addresses.Batcher
-	deployConfig.L2OutputOracleSubmissionInterval = 6
-	deployConfig.L2OutputOracleStartingTimestamp = -1
-	deployConfig.L2OutputOracleProposer = addresses.Proposer
-	deployConfig.FinalSystemOwner = addresses.SysCfgOwner
+	//deployConfig.L2OutputOracleStartingTimestamp = -1
 	deployConfig.L1BlockTime = tp.L1BlockTime
-	deployConfig.L1GenesisBlockNonce = 0
-	deployConfig.L1GenesisBlockTimestamp = hexutil.Uint64(time.Now().Unix())
-	deployConfig.L1GenesisBlockGasLimit = 30_000_000
-	deployConfig.L1GenesisBlockDifficulty = uint642big(1)
-	deployConfig.L1GenesisBlockMixHash = common.Hash{}
-	deployConfig.L1GenesisBlockCoinbase = common.Address{}
-	deployConfig.L1GenesisBlockNumber = 0
-	deployConfig.L1GenesisBlockGasUsed = 0
-	deployConfig.L1GenesisBlockParentHash = common.Hash{}
-	deployConfig.L1GenesisBlockBaseFeePerGas = uint642big(1000_000_000)
-	deployConfig.FinalizationPeriodSeconds = 12
-	deployConfig.L2GenesisBlockNonce = 0
-	deployConfig.L2GenesisBlockGasLimit = 30_000_000
-	deployConfig.L2GenesisBlockDifficulty = uint642big(0)
-	deployConfig.L2GenesisBlockMixHash = common.Hash{}
-	deployConfig.L2GenesisBlockNumber = 0
-	deployConfig.L2GenesisBlockGasUsed = 0
-	deployConfig.L2GenesisBlockParentHash = common.Hash{}
-	deployConfig.L2GenesisBlockBaseFeePerGas = uint642big(1000_000_000)
-	deployConfig.EIP1559Elasticity = 10
-	deployConfig.EIP1559Denominator = 50
-	deployConfig.FundDevAccounts = false
+
+	/*
+		deployConfig.L2GenesisBlockNonce = 0
+		deployConfig.L2GenesisBlockGasLimit = 30_000_000
+		deployConfig.L2GenesisBlockDifficulty = uint642big(0)
+		deployConfig.L2GenesisBlockMixHash = common.Hash{}
+		deployConfig.L2GenesisBlockNumber = 0
+		deployConfig.L2GenesisBlockGasUsed = 0
+		deployConfig.L2GenesisBlockParentHash = common.Hash{}
+		deployConfig.L2GenesisBlockBaseFeePerGas = uint642big(1000_000_000)
+		deployConfig.FundDevAccounts = false
+	*/
+	require.Equal(t, deployConfig.EIP1559Elasticity, uint64(10))
+	require.Equal(t, deployConfig.EIP1559Denominator, uint64(50))
 
 	require.NotEqual(t, deployConfig.OptimismPortalProxy, common.Address{})
 	require.NotEqual(t, deployConfig.SystemConfigProxy, common.Address{})
