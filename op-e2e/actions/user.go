@@ -32,15 +32,10 @@ type L1Bindings struct {
 }
 
 func NewL1Bindings(t Testing, l1Cl *ethclient.Client) *L1Bindings {
-	optimismPortalProxyAddr, err := config.L1Deployments.Get("OptimismPortalProxy")
-	require.NoError(t, err)
-	l2OutputOracleProxyAddr, err := config.L1Deployments.Get("L2OutputOracleProxy")
+	optimismPortal, err := bindings.NewOptimismPortal(config.L1Deployments.OptimismPortalProxy, l1Cl)
 	require.NoError(t, err)
 
-	optimismPortal, err := bindings.NewOptimismPortal(optimismPortalProxyAddr, l1Cl)
-	require.NoError(t, err)
-
-	l2OutputOracle, err := bindings.NewL2OutputOracle(l2OutputOracleProxyAddr, l1Cl)
+	l2OutputOracle, err := bindings.NewL2OutputOracle(config.L1Deployments.L2OutputOracleProxy, l1Cl)
 	require.NoError(t, err)
 
 	return &L1Bindings{

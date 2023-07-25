@@ -63,12 +63,8 @@ func runCrossLayerUserTest(gt *testing.T, test regolithScheduledTest) {
 		MaxL1TxSize: 128_000,
 		BatcherKey:  dp.Secrets.Batcher,
 	}, seq.RollupClient(), miner.EthClient(), seqEngine.EthClient())
-
-	l2OutputOracleProxyAddr, err := sd.DeploymentsL1.Get("L2OutputOracleProxy")
-	require.NoError(t, err)
-
 	proposer := NewL2Proposer(t, log, &ProposerCfg{
-		OutputOracleAddr:  l2OutputOracleProxyAddr,
+		OutputOracleAddr:  sd.DeploymentsL1.L2OutputOracleProxy,
 		ProposerKey:       dp.Secrets.Proposer,
 		AllowNonFinalized: true,
 	}, miner.EthClient(), seq.RollupClient())

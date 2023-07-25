@@ -33,9 +33,6 @@ func TestSetup(t *testing.T) {
 	require.Contains(t, sd.L2Cfg.Alloc, dp.Addresses.Alice)
 	require.Equal(t, sd.L2Cfg.Alloc[dp.Addresses.Alice].Balance, Ether(1e12))
 
-	optimismPortalAddr, err := config.L1Deployments.Get("OptimismPortalProxy")
-	require.NoError(t, err)
-
-	require.Contains(t, sd.L1Cfg.Alloc, optimismPortalAddr)
+	require.Contains(t, sd.L1Cfg.Alloc, config.L1Deployments.OptimismPortalProxy)
 	require.Contains(t, sd.L2Cfg.Alloc, predeploys.L1BlockAddr)
 }

@@ -591,16 +591,11 @@ func (cfg SystemConfig) Start(_opts ...SystemConfigOption) (*System, error) {
 		return sys, nil
 	}
 
-	l2OutputOracleProxy, err := config.L1Deployments.Get("L2OutputOracleProxy")
-	if err != nil {
-		return nil, err
-	}
-
 	// L2Output Submitter
 	sys.L2OutputSubmitter, err = l2os.NewL2OutputSubmitterFromCLIConfig(l2os.CLIConfig{
 		L1EthRpc:          sys.Nodes["l1"].WSEndpoint(),
 		RollupRpc:         sys.RollupNodes["sequencer"].HTTPEndpoint(),
-		L2OOAddress:       l2OutputOracleProxy.Hex(),
+		L2OOAddress:       config.L1Deployments.L2OutputOracleProxy.Hex(),
 		PollInterval:      50 * time.Millisecond,
 		TxMgrConfig:       newTxMgrConfig(sys.Nodes["l1"].WSEndpoint(), cfg.Secrets.Proposer),
 		AllowNonFinalized: cfg.NonFinalizedProposals,

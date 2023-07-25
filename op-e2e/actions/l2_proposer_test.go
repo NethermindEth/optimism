@@ -33,11 +33,8 @@ func TestProposer(gt *testing.T) {
 		BatcherKey:  dp.Secrets.Batcher,
 	}, rollupSeqCl, miner.EthClient(), seqEngine.EthClient())
 
-	l2OutputOracleProxyAddr, err := sd.DeploymentsL1.Get("L2OutputOracleProxy")
-	require.NoError(t, err)
-
 	proposer := NewL2Proposer(t, log, &ProposerCfg{
-		OutputOracleAddr:  l2OutputOracleProxyAddr,
+		OutputOracleAddr:  sd.DeploymentsL1.L2OutputOracleProxy,
 		ProposerKey:       dp.Secrets.Proposer,
 		AllowNonFinalized: false,
 	}, miner.EthClient(), sequencer.RollupClient())
@@ -89,7 +86,7 @@ func TestProposer(gt *testing.T) {
 	}
 
 	// check that L1 stored the expected output root
-	outputOracleContract, err := bindings.NewL2OutputOracle(l2OutputOracleProxyAddr, miner.EthClient())
+	outputOracleContract, err := bindings.NewL2OutputOracle(sd.DeploymentsL1.L2OutputOracleProxy, miner.EthClient())
 	require.NoError(t, err)
 
 	ival, err := outputOracleContract.SUBMISSIONINTERVAL(&bind.CallOpts{})

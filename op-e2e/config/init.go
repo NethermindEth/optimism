@@ -17,7 +17,7 @@ import (
 
 var (
 	L1Allocs      *state.Dump
-	L1Deployments Deployments
+	L1Deployments *genesis.L1Deployments
 	DeployConfig  *genesis.DeployConfig
 )
 
@@ -52,28 +52,6 @@ func ReadAllocs(filename string) (*state.Dump, error) {
 	return &dump, nil
 }
 
-// ReadDeployments
-func ReadDeployments(filename string) (map[string]common.Address, error) {
-	_, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return nil, err
-	}
-
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	var deployments map[string]common.Address
-	if err := decoder.Decode(&deployments); err != nil {
-		return nil, err
-	}
-	return deployments, nil
-}
-
-// TODO? this is twice?
 // Init testing to enable test flags
 var _ = func() bool {
 	testing.Init()
@@ -105,7 +83,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	L1Deployments, err = ReadDeployments(l1DeploymentsPath)
+	L1Deployments, err = genesis.NewL1Deployments(l1DeploymentsPath)
 	if err != nil {
 		panic(err)
 	}
@@ -114,13 +92,8 @@ func init() {
 		panic(err)
 	}
 
-	optimismPortalProxy, err := L1Deployments.Get("OptimismPortalProxy")
-	if err != nil {
-		panic(err)
-	}
-
 	// Get the storage layout
-	account := L1Allocs.Accounts[optimismPortalProxy]
+	account := L1Allocs.Accounts[L1Deployments.OptimismPortalProxy]
 	if len(account.Code) == 0 {
 		panic("portal proxy doesn't exist")
 	}
@@ -135,28 +108,14 @@ func init() {
 	}
 	slot := common.BigToHash(big.NewInt(int64(entry.Slot)))
 	account.Storage[slot] = slot.String()
-	L1Allocs.Accounts[optimismPortalProxy] = account
+	L1Allocs.Accounts[L1Deployments.OptimismPortalProxy] = account
 
-	if l1StandardBridgeProxy, err := L1Deployments.Get("L1StandardBridgeProxy"); err == nil {
-		DeployConfig.L1StandardBridgeProxy = l1StandardBridgeProxy
-	}
-	if l1CrossDomainMessengerProxy, err := L1Deployments.Get("L1CrossDomainMessengerProxy"); err == nil {
-		DeployConfig.L1CrossDomainMessengerProxy = l1CrossDomainMessengerProxy
-	}
-	if l1ERC721BridgeProxy, err := L1Deployments.Get("L1ERC721BridgeProxy"); err == nil {
-		DeployConfig.L1ERC721BridgeProxy = l1ERC721BridgeProxy
-	}
-	if optimismPortalProxy, err := L1Deployments.Get("OptimismPortalProxy"); err == nil {
-		DeployConfig.OptimismPortalProxy = optimismPortalProxy
-	}
-	if systemConfigProxy, err := L1Deployments.Get("SystemConfigProxy"); err == nil {
-		DeployConfig.SystemConfigProxy = systemConfigProxy
-	}
-
-	// TODO: keep this logging?
-	for k, v := range L1Deployments {
-		fmt.Printf("%s: %s\n", k, v)
-	}
+	DeployConfig.L1StandardBridgeProxy = L1Deployments.L1StandardBridgeProxy
+	DeployConfig.L1CrossDomainMessengerProxy = L1Deployments.L1CrossDomainMessengerProxy
+	DeployConfig.L1ERC721BridgeProxy = L1Deployments.L1ERC721BridgeProxy
+	DeployConfig.OptimismPortalProxy = L1Deployments.OptimismPortalProxy
+	DeployConfig.SystemConfigProxy = L1Deployments.SystemConfigProxy
+	// TODO: perhaps log L1Deployments?
 }
 
 // findMonorepoRoot will recursively search upwards for a go.mod file.
