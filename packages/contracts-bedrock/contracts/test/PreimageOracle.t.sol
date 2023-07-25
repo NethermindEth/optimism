@@ -5,6 +5,7 @@ import { Test } from "forge-std/Test.sol";
 
 import { PreimageOracle } from "../cannon/PreimageOracle.sol";
 import { PreimageKeyLib } from "../cannon/PreimageKeyLib.sol";
+import "../cannon/libraries/CannonErrors.sol";
 
 contract PreimageOracle_Test is Test {
     PreimageOracle oracle;
@@ -108,7 +109,7 @@ contract PreimageOracle_Test is Test {
         bytes32 preimage = bytes32(uint256(0xdeadbeef));
         uint256 offset = preimage.length + 9;
 
-        vm.expectRevert();
+        vm.expectRevert(PartOffsetOOB.selector);
         oracle.loadLocalData(1, preimage, 32, offset);
     }
 
@@ -117,7 +118,7 @@ contract PreimageOracle_Test is Test {
         bytes memory preimage = hex"deadbeef";
         uint256 offset = preimage.length + 9;
 
-        vm.expectRevert();
+        vm.expectRevert(PartOffsetOOB.selector);
         oracle.loadKeccak256PreimagePart(offset, preimage);
     }
 
