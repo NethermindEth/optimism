@@ -1,6 +1,7 @@
 [profile.default]
 src = 'contracts'
 out = 'forge-artifacts'
+script = "scripts"
 optimizer = true
 optimizer_runs = 999999
 
