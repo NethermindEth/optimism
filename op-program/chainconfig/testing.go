@@ -42,6 +42,9 @@ func SetTestConfig(config *rollup.Config, l2Genesis *params.ChainConfig) error {
 }
 
 func TestRollupConfig() *rollup.Config {
+	if testRollupConfig != nil {
+		return testRollupConfig
+	}
 	var config rollup.Config
 	data, err := os.ReadFile(testRollupConfigPath)
 	if err != nil {
@@ -56,6 +59,9 @@ func TestRollupConfig() *rollup.Config {
 }
 
 func TestL2Genesis() *params.ChainConfig {
+	if testL2Genesis != nil {
+		return testL2Genesis
+	}
 	var config params.ChainConfig
 	data, err := os.ReadFile(testL2GenesisPath)
 	if err != nil {
