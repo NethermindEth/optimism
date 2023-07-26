@@ -79,6 +79,10 @@ func init() {
 	flag.StringVar(&deployConfigPath, "deploy-config", defaultDeployConfigPath, "")
 	flag.Parse()
 
+	if err := allExist(l1AllocsPath, l1DeploymentsPath, deployConfigPath); err != nil {
+		return
+	}
+
 	L1Allocs, err = ReadAllocs(l1AllocsPath)
 	if err != nil {
 		panic(err)
@@ -116,6 +120,15 @@ func init() {
 	DeployConfig.OptimismPortalProxy = L1Deployments.OptimismPortalProxy
 	DeployConfig.SystemConfigProxy = L1Deployments.SystemConfigProxy
 	// TODO: perhaps log L1Deployments?
+}
+
+func allExist(filenames ...string) error {
+	for _, filename := range filenames {
+		if _, err := os.Stat(filename); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // findMonorepoRoot will recursively search upwards for a go.mod file.
