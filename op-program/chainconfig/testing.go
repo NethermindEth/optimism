@@ -1,6 +1,8 @@
 package chainconfig
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"math"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
@@ -10,23 +12,54 @@ import (
 var (
 	TestChainID = uint64(math.MaxUint64)
 
-	testConf *testConfig
+	testRollupConfigPath = "fpp_rollup_config.json"
+	testL2GenesisPath    = "fpp_l2_genesis.json"
 )
 
-func SetTestConfigs(config *rollup.Config, l2Genesis *params.ChainConfig) {
-	testConf.rollupConfig = config
-	testConf.l2Genesis = l2Genesis
+func SetTestConfig(config *rollup.Config, l2Genesis *params.ChainConfig) error {
+	data, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(testRollupConfigPath, data, 0644)
+	if err != nil {
+		return err
+	}
+
+	data, err = json.Marshal(l2Genesis)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(testL2GenesisPath, data, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func init() {
-	testConf = &testConfig{}
+func TestRollupConfig() *rollup.Config {
+	var config rollup.Config
+	data, err := ioutil.ReadFile(testRollupConfigPath)
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		panic("failed to unmarshal test rollup config")
+	}
+	// TODO(inphi): cache this
+	return &config
 }
 
-type testConfig struct {
-	rollupConfig *rollup.Config
-	l2Genesis    *params.ChainConfig
-}
-
-func (t *testConfig) initialized() bool {
-	return t.rollupConfig != nil && t.l2Genesis != nil
+func TestL2Genesis() *params.ChainConfig {
+	var config params.ChainConfig
+	data, err := ioutil.ReadFile(testL2GenesisPath)
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		panic("failed to unmarshal test l2 genesis")
+	}
+	return &config
 }

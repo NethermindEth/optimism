@@ -44,11 +44,7 @@ var L2ChainConfigsByName = map[string]*params.ChainConfig{
 
 func RollupConfigByChainID(chainID uint64) (*rollup.Config, error) {
 	if chainID == TestChainID {
-		if testConf.initialized() {
-			return testConf.rollupConfig, nil
-		} else {
-			return nil, fmt.Errorf("test config not initialized")
-		}
+		return TestRollupConfig(), nil
 	}
 	network := chaincfg.L2ChainIDToNetworkName[strconv.FormatUint(chainID, 10)]
 	if network == "" {
@@ -63,11 +59,7 @@ func RollupConfigByChainID(chainID uint64) (*rollup.Config, error) {
 
 func ChainConfigByChainID(chainID uint64) (*params.ChainConfig, error) {
 	if chainID == TestChainID {
-		if testConf.initialized() {
-			return testConf.l2Genesis, nil
-		} else {
-			return nil, fmt.Errorf("test config not initialized")
-		}
+		return TestL2Genesis(), nil
 	}
 	network := chaincfg.L2ChainIDToNetworkName[strconv.FormatUint(chainID, 10)]
 	chainConfig, ok := L2ChainConfigsByName[network]
