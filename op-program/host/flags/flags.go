@@ -20,10 +20,10 @@ func prefixEnvVars(name string) []string {
 }
 
 var (
-	RollupConfig = &cli.StringFlag{
-		Name:    "rollup.config",
-		Usage:   "Rollup chain parameters",
-		EnvVars: prefixEnvVars("ROLLUP_CONFIG"),
+	L2ChainID = &cli.Uint64Flag{
+		Name:    "l2.chainid",
+		Usage:   "Chain ID of the L2 execution engine",
+		EnvVars: prefixEnvVars("L2_CHAIN_ID"),
 	}
 	Network = &cli.StringFlag{
 		Name:    "network",
@@ -64,11 +64,6 @@ var (
 		Name:    "l2.blocknumber",
 		Usage:   "Number of the L2 block that the claim is from",
 		EnvVars: prefixEnvVars("L2_BLOCK_NUM"),
-	}
-	L2GenesisPath = &cli.StringFlag{
-		Name:    "l2.genesis",
-		Usage:   "Path to the op-geth genesis file",
-		EnvVars: prefixEnvVars("L2_GENESIS"),
 	}
 	L1NodeAddr = &cli.StringFlag{
 		Name:    "l1",
@@ -113,11 +108,10 @@ var requiredFlags = []cli.Flag{
 	L2BlockNumber,
 }
 var programFlags = []cli.Flag{
-	RollupConfig,
 	Network,
+	L2ChainID,
 	DataDir,
 	L2NodeAddr,
-	L2GenesisPath,
 	L1NodeAddr,
 	L1TrustRPC,
 	L1RPCProviderKind,
@@ -132,16 +126,13 @@ func init() {
 }
 
 func CheckRequired(ctx *cli.Context) error {
-	rollupConfig := ctx.String(RollupConfig.Name)
+	l2ChainID := ctx.Uint64(L2ChainID.Name)
 	network := ctx.String(Network.Name)
-	if rollupConfig == "" && network == "" {
-		return fmt.Errorf("flag %s or %s is required", RollupConfig.Name, Network.Name)
+	if l2ChainID == 0 && network == "" {
+		return fmt.Errorf("flag %s or %s is required", L2ChainID.Name, Network.Name)
 	}
-	if rollupConfig != "" && network != "" {
-		return fmt.Errorf("cannot specify both %s and %s", RollupConfig.Name, Network.Name)
-	}
-	if network == "" && ctx.String(L2GenesisPath.Name) == "" {
-		return fmt.Errorf("flag %s is required for custom networks", L2GenesisPath.Name)
+	if l2ChainID != 0 && network != "" {
+		return fmt.Errorf("cannot specify both %s and %s", L2ChainID.Name, Network.Name)
 	}
 	for _, flag := range requiredFlags {
 		if !ctx.IsSet(flag.Names()[0]) {

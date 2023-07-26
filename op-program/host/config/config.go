@@ -1,25 +1,19 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 
-	opnode "github.com/ethereum-optimism/optimism/op-node"
-	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/sources"
+	"github.com/ethereum-optimism/optimism/op-program/chainconfig"
 	"github.com/ethereum-optimism/optimism/op-program/host/flags"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/urfave/cli/v2"
 )
 
 var (
-	ErrMissingRollupConfig = errors.New("missing rollup config")
-	ErrMissingL2Genesis    = errors.New("missing l2 genesis")
+	ErrMissingL2ChainID    = errors.New("missing l2 chain ID")
 	ErrInvalidL1Head       = errors.New("invalid l1 head")
 	ErrInvalidL2Head       = errors.New("invalid l2 head")
 	ErrInvalidL2OutputRoot = errors.New("invalid l2 output root")
@@ -31,7 +25,6 @@ var (
 )
 
 type Config struct {
-	Rollup *rollup.Config
 	// DataDir is the directory to read/write pre-image data from/to.
 	//If not set, an in-memory key-value store is used and fetching data must be enabled
 	DataDir string
@@ -53,8 +46,11 @@ type Config struct {
 	// L2ClaimBlockNumber is the block number the claimed L2 output root is from
 	// Must be above 0 and to be a valid claim needs to be above the L2Head block.
 	L2ClaimBlockNumber uint64
-	// L2ChainConfig is the op-geth chain config for the L2 execution engine
-	L2ChainConfig *params.ChainConfig
+
+	// L2ChainID is the chain ID of the L2 execution engine
+	// For testing purposes, this can be set to MaxUint64 to use a preset chain configuration
+	L2ChainID uint64
+
 	// ExecCmd specifies the client program to execute in a separate process.
 	// If unset, the fault proof client is run in the same process.
 	ExecCmd string
@@ -65,12 +61,6 @@ type Config struct {
 }
 
 func (c *Config) Check() error {
-	if c.Rollup == nil {
-		return ErrMissingRollupConfig
-	}
-	if err := c.Rollup.Check(); err != nil {
-		return err
-	}
 	if c.L1Head == (common.Hash{}) {
 		return ErrInvalidL1Head
 	}
@@ -86,8 +76,8 @@ func (c *Config) Check() error {
 	if c.L2ClaimBlockNumber == 0 {
 		return ErrInvalidL2ClaimBlock
 	}
-	if c.L2ChainConfig == nil {
-		return ErrMissingL2Genesis
+	if c.L2ChainID == 0 {
+		return ErrMissingL2ChainID
 	}
 	if (c.L1URL != "") != (c.L2URL != "") {
 		return ErrL1AndL2Inconsistent
@@ -107,8 +97,7 @@ func (c *Config) FetchingEnabled() bool {
 
 // NewConfig creates a Config with all optional values set to the CLI default value
 func NewConfig(
-	rollupCfg *rollup.Config,
-	l2Genesis *params.ChainConfig,
+	l2ChainID uint64,
 	l1Head common.Hash,
 	l2Head common.Hash,
 	l2OutputRoot common.Hash,
@@ -116,8 +105,7 @@ func NewConfig(
 	l2ClaimBlockNum uint64,
 ) *Config {
 	return &Config{
-		Rollup:             rollupCfg,
-		L2ChainConfig:      l2Genesis,
+		L2ChainID:          l2ChainID,
 		L1Head:             l1Head,
 		L2Head:             l2Head,
 		L2OutputRoot:       l2OutputRoot,
@@ -129,10 +117,6 @@ func NewConfig(
 
 func NewConfigFromCLI(log log.Logger, ctx *cli.Context) (*Config, error) {
 	if err := flags.CheckRequired(ctx); err != nil {
-		return nil, err
-	}
-	rollupCfg, err := opnode.NewRollupConfig(log, ctx)
-	if err != nil {
 		return nil, err
 	}
 	l2Head := common.HexToHash(ctx.String(flags.L2Head.Name))
@@ -152,25 +136,21 @@ func NewConfigFromCLI(log log.Logger, ctx *cli.Context) (*Config, error) {
 	if l1Head == (common.Hash{}) {
 		return nil, ErrInvalidL1Head
 	}
-	l2GenesisPath := ctx.String(flags.L2GenesisPath.Name)
-	var l2ChainConfig *params.ChainConfig
-	if l2GenesisPath == "" {
-		networkName := ctx.String(flags.Network.Name)
-		l2ChainConfig = L2ChainConfigsByName[networkName]
-		if l2ChainConfig == nil {
-			return nil, fmt.Errorf("flag %s is required for network %s", flags.L2GenesisPath.Name, networkName)
+	l2ChainID := ctx.Uint64(flags.L2ChainID.Name)
+	if l2ChainID == 0 {
+		config := chainconfig.L2ChainConfigsByName[ctx.String(flags.Network.Name)]
+		if config == nil {
+			return nil, fmt.Errorf("invalid network %s", ctx.String(flags.Network.Name))
 		}
-	} else {
-		l2ChainConfig, err = loadChainConfigFromGenesis(l2GenesisPath)
+		l2ChainID = config.ChainID.Uint64()
 	}
-	if err != nil {
-		return nil, fmt.Errorf("invalid genesis: %w", err)
+	if l2ChainID == 0 {
+		return nil, fmt.Errorf("unknown chainID for network %s", ctx.String(flags.Network.Name))
 	}
 	return &Config{
-		Rollup:             rollupCfg,
+		L2ChainID:          l2ChainID,
 		DataDir:            ctx.String(flags.DataDir.Name),
 		L2URL:              ctx.String(flags.L2NodeAddr.Name),
-		L2ChainConfig:      l2ChainConfig,
 		L2Head:             l2Head,
 		L2OutputRoot:       l2OutputRoot,
 		L2Claim:            l2Claim,
@@ -182,17 +162,4 @@ func NewConfigFromCLI(log log.Logger, ctx *cli.Context) (*Config, error) {
 		ExecCmd:            ctx.String(flags.Exec.Name),
 		ServerMode:         ctx.Bool(flags.Server.Name),
 	}, nil
-}
-
-func loadChainConfigFromGenesis(path string) (*params.ChainConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read l2 genesis file: %w", err)
-	}
-	var genesis core.Genesis
-	err = json.Unmarshal(data, &genesis)
-	if err != nil {
-		return nil, fmt.Errorf("parse l2 genesis file: %w", err)
-	}
-	return genesis.Config, nil
 }

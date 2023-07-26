@@ -2,13 +2,10 @@ package client
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"testing"
 
-	"github.com/ethereum-optimism/optimism/op-node/chaincfg"
 	preimage "github.com/ethereum-optimism/optimism/op-preimage"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,8 +15,7 @@ func TestBootstrapClient(t *testing.T) {
 		L2OutputRoot:       common.HexToHash("0x2222"),
 		L2Claim:            common.HexToHash("0x3333"),
 		L2ClaimBlockNumber: 1,
-		L2ChainConfig:      params.GoerliChainConfig,
-		RollupConfig:       &chaincfg.Goerli,
+		L2ChainID:          4,
 	}
 	mockOracle := &mockBoostrapOracle{bootInfo}
 	readBootInfo := NewBootstrapClient(mockOracle).BootInfo()
@@ -40,12 +36,8 @@ func (o *mockBoostrapOracle) Get(key preimage.Key) []byte {
 		return o.b.L2Claim[:]
 	case L2ClaimBlockNumberLocalIndex.PreimageKey():
 		return binary.BigEndian.AppendUint64(nil, o.b.L2ClaimBlockNumber)
-	case L2ChainConfigLocalIndex.PreimageKey():
-		b, _ := json.Marshal(o.b.L2ChainConfig)
-		return b
-	case RollupConfigLocalIndex.PreimageKey():
-		b, _ := json.Marshal(o.b.RollupConfig)
-		return b
+	case L2ChainIDLocalIndex.PreimageKey():
+		return binary.BigEndian.AppendUint64(nil, o.b.L2ChainID)
 	default:
 		panic("unknown key")
 	}

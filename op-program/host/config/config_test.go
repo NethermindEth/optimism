@@ -3,16 +3,12 @@ package config
 import (
 	"testing"
 
-	"github.com/ethereum-optimism/optimism/op-node/chaincfg"
-	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	validRollupConfig    = &chaincfg.Goerli
-	validL2Genesis       = params.GoerliChainConfig
+	validL2ChainID       = uint64(1234)
 	validL1Head          = common.Hash{0xaa}
 	validL2Head          = common.Hash{0xbb}
 	validL2Claim         = common.Hash{0xcc}
@@ -26,20 +22,11 @@ func TestValidConfigIsValid(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestRollupConfig(t *testing.T) {
-	t.Run("Required", func(t *testing.T) {
-		config := validConfig()
-		config.Rollup = nil
-		err := config.Check()
-		require.ErrorIs(t, err, ErrMissingRollupConfig)
-	})
-
-	t.Run("Invalid", func(t *testing.T) {
-		config := validConfig()
-		config.Rollup = &rollup.Config{}
-		err := config.Check()
-		require.ErrorIs(t, err, rollup.ErrBlockTimeZero)
-	})
+func TestL2ChainIDRequired(t *testing.T) {
+	config := validConfig()
+	config.L2ChainID = 0
+	err := config.Check()
+	require.ErrorIs(t, err, ErrMissingL2ChainID)
 }
 
 func TestL1HeadRequired(t *testing.T) {
@@ -75,13 +62,6 @@ func TestL2ClaimBlockNumberRequired(t *testing.T) {
 	config.L2ClaimBlockNumber = 0
 	err := config.Check()
 	require.ErrorIs(t, err, ErrInvalidL2ClaimBlock)
-}
-
-func TestL2GenesisRequired(t *testing.T) {
-	config := validConfig()
-	config.L2ChainConfig = nil
-	err := config.Check()
-	require.ErrorIs(t, err, ErrMissingL2Genesis)
 }
 
 func TestFetchingArgConsistency(t *testing.T) {
@@ -159,7 +139,7 @@ func TestRejectExecAndServerMode(t *testing.T) {
 }
 
 func validConfig() *Config {
-	cfg := NewConfig(validRollupConfig, validL2Genesis, validL1Head, validL2Head, validL2OutputRoot, validL2Claim, validL2ClaimBlockNum)
+	cfg := NewConfig(validL2ChainID, validL1Head, validL2Head, validL2OutputRoot, validL2Claim, validL2ClaimBlockNum)
 	cfg.DataDir = "/tmp/configTest"
 	return cfg
 }

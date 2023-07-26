@@ -24,7 +24,7 @@ func TestServerMode(t *testing.T) {
 
 	l1Head := common.Hash{0x11}
 	l2OutputRoot := common.Hash{0x33}
-	cfg := config.NewConfig(&chaincfg.Goerli, config.OPGoerliChainConfig, l1Head, common.Hash{0x22}, l2OutputRoot, common.Hash{0x44}, 1000)
+	cfg := config.NewConfig(chaincfg.Goerli.L2ChainID.Uint64(), l1Head, common.Hash{0x22}, l2OutputRoot, common.Hash{0x44}, 1000)
 	cfg.DataDir = dir
 	cfg.ServerMode = true
 

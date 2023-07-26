@@ -1,16 +1,14 @@
 package main
 
 import (
-	"encoding/json"
-	"os"
 	"strconv"
 	"testing"
 
 	"github.com/ethereum-optimism/optimism/op-node/chaincfg"
 	"github.com/ethereum-optimism/optimism/op-node/sources"
+	"github.com/ethereum-optimism/optimism/op-program/chainconfig"
 	"github.com/ethereum-optimism/optimism/op-program/host/config"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
 )
@@ -22,9 +20,6 @@ var (
 	l2ClaimValue       = common.HexToHash("0x333333").Hex()
 	l2OutputRoot       = common.HexToHash("0x444444").Hex()
 	l2ClaimBlockNumber = uint64(1203)
-	// Note: This is actually the L1 goerli genesis config. Just using it as an arbitrary, valid genesis config
-	l2Genesis       = core.DefaultGoerliGenesisBlock()
-	l2GenesisConfig = l2Genesis.Config
 )
 
 func TestLogLevel(t *testing.T) {
@@ -45,8 +40,7 @@ func TestLogLevel(t *testing.T) {
 func TestDefaultCLIOptionsMatchDefaultConfig(t *testing.T) {
 	cfg := configForArgs(t, addRequiredArgs())
 	defaultCfg := config.NewConfig(
-		&chaincfg.Goerli,
-		config.OPGoerliChainConfig,
+		chainconfig.OPGoerliChainConfig.ChainID.Uint64(),
 		common.HexToHash(l1HeadValue),
 		common.HexToHash(l2HeadValue),
 		common.HexToHash(l2OutputRoot),
@@ -61,24 +55,16 @@ func TestNetwork(t *testing.T) {
 	})
 
 	t.Run("Required", func(t *testing.T) {
-		verifyArgsInvalid(t, "flag rollup.config or network is required", addRequiredArgsExcept("--network"))
+		verifyArgsInvalid(t, "flag l2.chainid or network is required", addRequiredArgsExcept("--network"))
 	})
 
 	t.Run("DisallowNetworkAndRollupConfig", func(t *testing.T) {
-		verifyArgsInvalid(t, "cannot specify both rollup.config and network", addRequiredArgs("--rollup.config=foo"))
-	})
-
-	t.Run("RollupConfig", func(t *testing.T) {
-		configFile := writeValidRollupConfig(t)
-		genesisFile := writeValidGenesis(t)
-
-		cfg := configForArgs(t, addRequiredArgsExcept("--network", "--rollup.config", configFile, "--l2.genesis", genesisFile))
-		require.Equal(t, chaincfg.Goerli, *cfg.Rollup)
+		verifyArgsInvalid(t, "cannot specify both l2.chainid and network", addRequiredArgs("--l2.chainid=10"))
 	})
 
 	for name, cfg := range chaincfg.NetworksByName {
 		name := name
-		expected := cfg
+		expected := cfg.L2ChainID.Uint64()
 		t.Run("Network_"+name, func(t *testing.T) {
 			// TODO(CLI-3936) Re-enable test for other networks once bedrock migration is complete
 			if name != "goerli" {
@@ -87,7 +73,7 @@ func TestNetwork(t *testing.T) {
 			}
 			args := replaceRequiredArg("--network", name)
 			cfg := configForArgs(t, args)
-			require.Equal(t, expected, *cfg.Rollup)
+			require.Equal(t, expected, cfg.L2ChainID)
 		})
 	}
 }
@@ -104,22 +90,19 @@ func TestL2(t *testing.T) {
 	require.Equal(t, expected, cfg.L2URL)
 }
 
-func TestL2Genesis(t *testing.T) {
+func TestL2ChainID(t *testing.T) {
 	t.Run("RequiredWithCustomNetwork", func(t *testing.T) {
-		rollupCfgFile := writeValidRollupConfig(t)
-		verifyArgsInvalid(t, "flag l2.genesis is required", addRequiredArgsExcept("--network", "--rollup.config", rollupCfgFile))
+		verifyArgsInvalid(t, "flag l2.chainid or network is required", addRequiredArgsExcept("--network"))
 	})
 
 	t.Run("Valid", func(t *testing.T) {
-		rollupCfgFile := writeValidRollupConfig(t)
-		genesisFile := writeValidGenesis(t)
-		cfg := configForArgs(t, addRequiredArgsExcept("--network", "--rollup.config", rollupCfgFile, "--l2.genesis", genesisFile))
-		require.Equal(t, l2GenesisConfig, cfg.L2ChainConfig)
+		cfg := configForArgs(t, addRequiredArgsExcept("--network", "--l2.chainid", strconv.FormatUint(chainconfig.TestChainID, 10)))
+		require.Equal(t, chainconfig.TestChainID, cfg.L2ChainID)
 	})
 
 	t.Run("NotRequiredForGoerli", func(t *testing.T) {
 		cfg := configForArgs(t, replaceRequiredArg("--network", "goerli"))
-		require.Equal(t, config.OPGoerliChainConfig, cfg.L2ChainConfig)
+		require.Equal(t, chainconfig.OPGoerliChainConfig.ChainID.Uint64(), cfg.L2ChainID)
 	})
 }
 
@@ -328,24 +311,6 @@ func requiredArgs() map[string]string {
 		"--l2.claim":       l2ClaimValue,
 		"--l2.blocknumber": strconv.FormatUint(l2ClaimBlockNumber, 10),
 	}
-}
-
-func writeValidGenesis(t *testing.T) string {
-	dir := t.TempDir()
-	j, err := json.Marshal(l2Genesis)
-	require.NoError(t, err)
-	genesisFile := dir + "/genesis.json"
-	require.NoError(t, os.WriteFile(genesisFile, j, 0666))
-	return genesisFile
-}
-
-func writeValidRollupConfig(t *testing.T) string {
-	dir := t.TempDir()
-	j, err := json.Marshal(chaincfg.Goerli)
-	require.NoError(t, err)
-	cfgFile := dir + "/rollup.json"
-	require.NoError(t, os.WriteFile(cfgFile, j, 0666))
-	return cfgFile
 }
 
 func toArgList(req map[string]string) []string {

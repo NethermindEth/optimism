@@ -2,12 +2,9 @@ package client
 
 import (
 	"encoding/binary"
-	"encoding/json"
 
-	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	preimage "github.com/ethereum-optimism/optimism/op-preimage"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 const (
@@ -15,8 +12,7 @@ const (
 	L2OutputRootLocalIndex
 	L2ClaimLocalIndex
 	L2ClaimBlockNumberLocalIndex
-	L2ChainConfigLocalIndex
-	RollupConfigLocalIndex
+	L2ChainIDLocalIndex
 )
 
 type BootInfo struct {
@@ -24,8 +20,7 @@ type BootInfo struct {
 	L2OutputRoot       common.Hash
 	L2Claim            common.Hash
 	L2ClaimBlockNumber uint64
-	L2ChainConfig      *params.ChainConfig
-	RollupConfig       *rollup.Config
+	L2ChainID          uint64
 }
 
 type oracleClient interface {
@@ -45,23 +40,13 @@ func (br *BootstrapClient) BootInfo() *BootInfo {
 	l2OutputRoot := common.BytesToHash(br.r.Get(L2OutputRootLocalIndex))
 	l2Claim := common.BytesToHash(br.r.Get(L2ClaimLocalIndex))
 	l2ClaimBlockNumber := binary.BigEndian.Uint64(br.r.Get(L2ClaimBlockNumberLocalIndex))
-	l2ChainConfig := new(params.ChainConfig)
-	err := json.Unmarshal(br.r.Get(L2ChainConfigLocalIndex), &l2ChainConfig)
-	if err != nil {
-		panic("failed to bootstrap l2ChainConfig")
-	}
-	rollupConfig := new(rollup.Config)
-	err = json.Unmarshal(br.r.Get(RollupConfigLocalIndex), rollupConfig)
-	if err != nil {
-		panic("failed to bootstrap rollup config")
-	}
+	chainID := binary.BigEndian.Uint64(br.r.Get(L2ChainIDLocalIndex))
 
 	return &BootInfo{
 		L1Head:             l1Head,
 		L2OutputRoot:       l2OutputRoot,
 		L2Claim:            l2Claim,
 		L2ClaimBlockNumber: l2ClaimBlockNumber,
-		L2ChainConfig:      l2ChainConfig,
-		RollupConfig:       rollupConfig,
+		L2ChainID:          chainID,
 	}
 }

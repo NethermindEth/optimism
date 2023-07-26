@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/sources"
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
+	oppchainconf "github.com/ethereum-optimism/optimism/op-program/chainconfig"
 	"github.com/ethereum-optimism/optimism/op-program/client/driver"
 	opp "github.com/ethereum-optimism/optimism/op-program/host"
 	oppconf "github.com/ethereum-optimism/optimism/op-program/host/config"
@@ -240,7 +241,8 @@ type FaultProofProgramTestScenario struct {
 // testFaultProofProgramScenario runs the fault proof program in several contexts, given a test scenario.
 func testFaultProofProgramScenario(t *testing.T, ctx context.Context, sys *System, s *FaultProofProgramTestScenario) {
 	preimageDir := t.TempDir()
-	fppConfig := oppconf.NewConfig(sys.RollupConfig, sys.L2GenesisCfg.Config, s.L1Head, s.L2Head, s.L2OutputRoot, common.Hash(s.L2Claim), s.L2ClaimBlockNumber)
+	oppchainconf.SetTestConfigs(sys.RollupConfig, sys.L2GenesisCfg.Config)
+	fppConfig := oppconf.NewConfig(oppchainconf.TestChainID, s.L1Head, s.L2Head, s.L2OutputRoot, common.Hash(s.L2Claim), s.L2ClaimBlockNumber)
 	fppConfig.L1URL = sys.NodeEndpoint("l1")
 	fppConfig.L2URL = sys.NodeEndpoint("sequencer")
 	fppConfig.DataDir = preimageDir
