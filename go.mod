@@ -164,6 +164,7 @@ require (
 	github.com/quic-go/qtls-go1-20 v0.1.0 // indirect
 	github.com/quic-go/quic-go v0.32.0 // indirect
 	github.com/quic-go/webtransport-go v0.5.1 // indirect
+	github.com/r3labs/sse v0.0.0-20210224172625-26fe804710bc // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
@@ -190,6 +191,7 @@ require (
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/tools v0.7.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
+	gopkg.in/cenkalti/backoff.v1 v1.1.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

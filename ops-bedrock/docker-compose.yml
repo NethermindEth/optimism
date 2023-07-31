@@ -7,7 +7,11 @@ version: '3.4'
 volumes:
   l1_data:
   l2_data:
+  l2_relay_data:
   op_log:
+  golang_cache:
+  psql_data:
+    driver: local
 
 
 services:
@@ -20,6 +24,7 @@ services:
       - "8546:8546"
       - "7060:6060"
     volumes:
+      - "golang_cache:/root/go/pkg/mod"
       - "l1_data:/db"
       - "${PWD}/../.devnet/genesis-l1.json:/genesis.json"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
@@ -30,8 +35,10 @@ services:
       dockerfile: Dockerfile.l2
     ports:
       - "9545:8545"
-      - "8060:6060"
+      - "9551:8551"
+      - "18060:6060"
     volumes:
+      - "golang_cache:/root/go/pkg/mod"
       - "l2_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
@@ -39,6 +46,47 @@ services:
       - "/bin/sh"
       - "/entrypoint.sh"
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
+
+  l2-relay:
+    build:
+      context: .
+      dockerfile: Dockerfile.l2
+    ports:
+      - "9500:8545"
+      - "9501:8551"
+      - "18061:6060"
+    volumes:
+      - "golang_cache:/root/go/pkg/mod"
+      - "l2_relay_data:/db"
+      - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+    entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
+      - "/bin/sh"
+      - "/entrypoint.sh"
+      - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
+
+  op-node-relay:
+    depends_on:
+      - l1
+      - l2
+    image: "us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.1.1"
+    command: >
+      op-node
+      --l1=ws://l1:8546
+      --l2=http://l2:8551
+      --l2.jwt-secret=/config/test-jwt-secret.txt
+      --rollup.config=/rollup.json
+      --rpc.addr=0.0.0.0
+      --rpc.port=8500
+      --rpc.enable-admin
+    ports:
+      - "7500:8500"
+      - "7501:8501"
+    volumes:
+      - "golang_cache:/root/go/pkg/mod"
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+      - "${PWD}/../.devnet/rollup.json:/rollup.json"
+      - op_log:/op_log
 
   op-node:
     depends_on:
@@ -73,38 +121,17 @@ services:
       --rpc.enable-admin
     ports:
       - "7545:8545"
+      - "7546:8546"
       - "9003:9003"
       - "7300:7300"
       - "6060:6060"
     volumes:
+      - "golang_cache:/root/go/pkg/mod"
       - "${PWD}/p2p-sequencer-key.txt:/config/p2p-sequencer-key.txt"
       - "${PWD}/p2p-node-key.txt:/config/p2p-node-key.txt"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
       - "${PWD}/../.devnet/rollup.json:/rollup.json"
       - op_log:/op_log
-
-  op-proposer:
-    depends_on:
-      - l1
-      - l2
-      - op-node
-    build:
-      context: ../
-      dockerfile: ./op-proposer/Dockerfile
-    ports:
-      - "6062:6060"
-      - "7302:7300"
-    environment:
-      OP_PROPOSER_L1_ETH_RPC: http://l1:8545
-      OP_PROPOSER_ROLLUP_RPC: http://op-node:8545
-      OP_PROPOSER_POLL_INTERVAL: 1s
-      OP_PROPOSER_NUM_CONFIRMATIONS: 1
-      OP_PROPOSER_MNEMONIC: test test test test test test test test test test test junk
-      OP_PROPOSER_L2_OUTPUT_HD_PATH: "m/44'/60'/0'/0/1"
-      OP_PROPOSER_L2OO_ADDRESS: "${L2OO_ADDRESS}"
-      OP_PROPOSER_PPROF_ENABLED: "true"
-      OP_PROPOSER_METRICS_ENABLED: "true"
-      OP_PROPOSER_ALLOW_NON_FINALIZED: "true"
 
   op-batcher:
     depends_on:
@@ -118,6 +145,9 @@ services:
       - "6061:6060"
       - "7301:7300"
       - "6545:8545"
+    volumes:
+      - "golang_cache:/root/go/pkg/mod"
+
     environment:
       OP_BATCHER_L1_ETH_RPC: http://l1:8545
       OP_BATCHER_L2_ETH_RPC: http://l2:8545
@@ -132,6 +162,34 @@ services:
       OP_BATCHER_METRICS_ENABLED: "true"
       OP_BATCHER_RPC_ENABLE_ADMIN: "true"
 
+  op-proposer:
+    depends_on:
+      - l1
+      - l2
+      - op-node
+    build:
+      context: ../
+      dockerfile: ./op-proposer/Dockerfile
+    ports:
+      - "6062:6060"
+      - "7302:7300"
+    volumes:
+      - "golang_cache:/root/go/pkg/mod"
+    environment:
+      OP_PROPOSER_L1_ETH_RPC: http://l1:8545
+      OP_PROPOSER_ROLLUP_RPC: http://op-node:8545
+      OP_PROPOSER_POLL_INTERVAL: 1s
+      OP_PROPOSER_NUM_CONFIRMATIONS: 1
+      OP_PROPOSER_MNEMONIC: test test test test test test test test test test test junk
+      OP_PROPOSER_L2_OUTPUT_HD_PATH: "m/44'/60'/0'/0/1"
+      OP_PROPOSER_L2OO_ADDRESS: "${L2OO_ADDRESS}"
+      OP_PROPOSER_PPROF_ENABLED: "true"
+      OP_PROPOSER_METRICS_ENABLED: "true"
+      OP_PROPOSER_ALLOW_NON_FINALIZED: "true"
+
+
+
+
   stateviz:
     build:
       context: ../
@@ -144,4 +202,92 @@ services:
     ports:
       - "9090:8080"
     volumes:
+      - "golang_cache:/root/go/pkg/mod"
       - op_log:/op_log:ro
+
+
+  # Mev Boost part
+  mev-relay-redis:
+    image: redis
+    restart: always
+    ports:
+      - '6379:6379'
+
+#  memcached:
+#    image: memcached
+#    restart: always
+#    ports:
+#      - '11211:11211'
+
+  mev-relay-db:
+    image: postgres
+    restart: always
+    volumes:
+      - 'psql_data:/var/lib/postgresql/data'
+    expose:
+      - "5432"
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+
+  # phpMyAdmin-like DB browser, localhost:8093
+  mev-relay-adminer:
+    image: adminer
+    restart: always
+    depends_on:
+      - mev-relay-db
+    ports:
+      - '8093:8080'
+    environment:
+      ADMINER_PLUGINS: tables-filter tinymce
+
+  mev-relay-migrations:
+    restart: on-failure
+    build:
+      context: ../../mev-relay/
+    depends_on:
+      - mev-relay-db
+    command:
+      tool migrate --db "postgresql://postgres:postgres@mev-relay-db:5432/postgres?sslmode=disable"
+
+  mev-relay-api:
+    build:
+      context: ../../mev-relay/
+    depends_on:
+      mev-relay-migrations:
+        condition: service_completed_successfully
+      mev-relay-redis:
+        condition: service_started
+    command: >
+      api
+      --debug
+      --db "postgresql://postgres:postgres@mev-relay-db:5432/postgres?sslmode=disable"
+      --redis-uri "mev-relay-redis:6379"
+      --listen-addr "0.0.0.0:9062"
+      --beacon-uris "http://op-node:8546"
+      --secret-key "0x3dd5f69c2e334a81ee84deb2f2da0e460b0b90aca2cd2e7d948cce056982c119"
+    environment:
+      - DISABLE_PAYLOAD_DATABASE_STORAGE=1
+      - LOG_LEVEL=debug
+
+  # flags
+  # --pprof
+
+  mev-relay-housekeeper:
+    build:
+      context: ../../mev-relay/
+    depends_on:
+      mev-relay-migrations:
+        condition: service_completed_successfully
+      mev-relay-redis:
+        condition: service_started
+    command: >
+      housekeeper
+      --db "postgresql://postgres:postgres@mev-relay-db:5432/postgres?sslmode=disable"
+    environment:
+      - LOG_LEVEL=debug

@@ -75,7 +75,7 @@ type DerivationPipeline struct {
 }
 
 // NewDerivationPipeline creates a derivation pipeline, which should be reset before use.
-func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetcher, engine Engine, metrics Metrics) *DerivationPipeline {
+func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetcher, engine Engine, attrsSequencer *AttributesSequencer, metrics Metrics) *DerivationPipeline {
 
 	// Pull stages
 	l1Traversal := NewL1Traversal(log, cfg, l1Fetcher)
@@ -89,7 +89,7 @@ func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetch
 	attributesQueue := NewAttributesQueue(log, cfg, attrBuilder, batchQueue)
 
 	// Step stages
-	eng := NewEngineQueue(log, cfg, engine, metrics, attributesQueue, l1Fetcher)
+	eng := NewEngineQueue(log, cfg, engine, metrics, attributesQueue, l1Fetcher, attrsSequencer)
 
 	// Reset from engine queue then up from L1 Traversal. The stages do not talk to each other during
 	// the reset, but after the engine queue, this is the order in which the stages could talk to each other.
