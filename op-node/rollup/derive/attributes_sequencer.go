@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-node/eth"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -57,7 +59,27 @@ func (as *AttributesSequencer) PreparePayloadAttributes(ctx context.Context, l2H
 		return nil, err
 	}
 
-	attrsData, err := json.Marshal(attrs)
+	txs := make(types.Transactions, 0, len(attrs.Transactions))
+	for i, tx := range attrs.Transactions {
+		txs[i].UnmarshalBinary(tx)
+	}
+
+	attrsEvent := &eth.BuilderPayloadAttributesEvent{
+		Version: "",
+		Data: eth.BuilderPayloadAttributesEventData{
+			ProposalSlot:    l2Head.Number + 1,
+			ParentBlockHash: l2Head.Hash,
+			PayloadAttributes: eth.BuilderPayloadAttributes{
+				Timestamp:             uint64(attrs.Timestamp),
+				PrevRandao:            common.Hash(attrs.PrevRandao),
+				SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+				GasLimit:              uint64(*attrs.GasLimit),
+				Transactions:          txs,
+			},
+		},
+	}
+
+	attrsData, err := json.Marshal(attrsEvent)
 	if err != nil {
 		return nil, err
 	}

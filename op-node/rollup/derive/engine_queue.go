@@ -133,12 +133,14 @@ type EngineQueue struct {
 
 	metrics   Metrics
 	l1Fetcher L1Fetcher
+
+	attrsSequencer *AttributesSequencer
 }
 
 var _ EngineControl = (*EngineQueue)(nil)
 
 // NewEngineQueue creates a new EngineQueue, which should be Reset(origin) before use.
-func NewEngineQueue(log log.Logger, cfg *rollup.Config, engine Engine, metrics Metrics, prev NextAttributesProvider, l1Fetcher L1Fetcher) *EngineQueue {
+func NewEngineQueue(log log.Logger, cfg *rollup.Config, engine Engine, metrics Metrics, prev NextAttributesProvider, l1Fetcher L1Fetcher, attrsSequencer *AttributesSequencer) *EngineQueue {
 	return &EngineQueue{
 		log:            log,
 		cfg:            cfg,
@@ -148,6 +150,8 @@ func NewEngineQueue(log log.Logger, cfg *rollup.Config, engine Engine, metrics M
 		unsafePayloads: NewPayloadsQueue(maxUnsafePayloadsMemory, payloadMemSize),
 		prev:           prev,
 		l1Fetcher:      l1Fetcher,
+
+		attrsSequencer: attrsSequencer,
 	}
 }
 
@@ -170,6 +174,7 @@ func (eq *EngineQueue) AddUnsafePayload(payload *eth.ExecutionPayload) {
 		eq.log.Warn("cannot add nil unsafe payload")
 		return
 	}
+	// TODO adding
 	if err := eq.unsafePayloads.Push(payload); err != nil {
 		eq.log.Warn("Could not add unsafe payload", "id", payload.ID(), "timestamp", uint64(payload.Timestamp), "err", err)
 		return
@@ -485,7 +490,10 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 	eq.log.Trace("Executed unsafe payload", "hash", ref.Hash, "number", ref.Number, "timestamp", ref.Time, "l1Origin", ref.L1Origin)
 	eq.logSyncProgress("unsafe payload from sequencer")
 
-	return nil
+	// no use for attrs here, boadcasting inside of PreparePayloadAttributes is enough
+	_, err = eq.attrsSequencer.PreparePayloadAttributes(ctx, eq.unsafeHead)
+
+	return err
 }
 
 func (eq *EngineQueue) tryNextSafeAttributes(ctx context.Context) error {
