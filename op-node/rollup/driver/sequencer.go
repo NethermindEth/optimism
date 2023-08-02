@@ -2,7 +2,6 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -46,11 +45,9 @@ type Sequencer struct {
 	timeNow func() time.Time
 
 	nextAction time.Time
-
-	broadcastPayloadAttrs func(id string, data []byte)
 }
 
-func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics, broadcastPayloadAttrs func(id string, data []byte)) *Sequencer {
+func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) *Sequencer {
 	return &Sequencer{
 		log:              log,
 		config:           cfg,
@@ -59,8 +56,6 @@ func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEn
 		attrBuilder:      attributesBuilder,
 		l1OriginSelector: l1OriginSelector,
 		metrics:          metrics,
-
-		broadcastPayloadAttrs: broadcastPayloadAttrs,
 	}
 }
 
@@ -89,12 +84,6 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	attrsData, err := json.Marshal(attrs)
-	if err != nil {
-		return err
-	}
-	d.broadcastPayloadAttrs("payload_attributes", attrsData)
 
 	// If our next L2 block timestamp is beyond the Sequencer drift threshold, then we must produce
 	// empty blocks (other than the L1 info deposit and any user deposits). We handle this by
