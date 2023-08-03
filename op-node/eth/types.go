@@ -221,6 +221,26 @@ func BlockAsPayload(bl *types.Block) (*ExecutionPayload, error) {
 	}, nil
 }
 
+type BuilderPayloadAttributesEvent struct {
+	Version string                     `json:"version"`
+	Data    BuilderPayloadAttributesEventData `json:"data"`
+}
+
+type BuilderPayloadAttributesEventData struct {
+	ProposalSlot      uint64            `json:"proposal_slot,string"`
+	ParentBlockHash   common.Hash       `json:"parent_block_hash"`
+	PayloadAttributes BuilderPayloadAttributes `json:"payload_attributes"`
+}
+
+type BuilderPayloadAttributes struct {
+	Timestamp             uint64                `json:"timestamp,string"`
+	PrevRandao            common.Hash           `json:"prev_randao"`
+	SuggestedFeeRecipient common.Address        `json:"suggested_fee_recipient"`
+	Transactions          types.Transactions    `json:"transactions"`
+	GasLimit              uint64                `json:"gas_limit"`
+}
+
+
 type PayloadAttributes struct {
 	// value for the timestamp field of the new payload
 	Timestamp Uint64Quantity `json:"timestamp"`

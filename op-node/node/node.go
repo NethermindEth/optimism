@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/r3labs/sse"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/event"
@@ -39,6 +41,8 @@ type OpNode struct {
 	p2pSigner p2p.Signer            // p2p gogssip application messages will be signed with this signer
 	tracer    Tracer                // tracer to get events for testing/debugging
 	runCfg    *RuntimeConfig        // runtime configurables
+
+	httpEventStreamServer *sse.Server
 
 	// some resources cannot be stopped directly, like the p2p gossipsub router (not our design),
 	// and depend on this ctx to be closed.
@@ -98,6 +102,9 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	}
 	// Only expose the server at the end, ensuring all RPC backend components are initialized.
 	if err := n.initRPCServer(ctx, cfg); err != nil {
+		return err
+	}
+	if err := n.initHttpEventStreamServer(ctx, cfg); err != nil {
 		return err
 	}
 	if err := n.initMetricsServer(ctx, cfg); err != nil {
@@ -199,7 +206,11 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 		return err
 	}
 
-	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence)
+	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, func(id string, data []byte) {
+		n.httpEventStreamServer.Publish(id, &sse.Event{
+			Data: data,
+		})
+	})
 
 	return nil
 }
@@ -237,6 +248,25 @@ func (n *OpNode) initRPCServer(ctx context.Context, cfg *Config) error {
 		return fmt.Errorf("unable to start RPC server: %w", err)
 	}
 	n.server = server
+	return nil
+}
+
+func (n *OpNode) initHttpEventStreamServer(ctx context.Context, cfg *Config) error {
+	server := sse.New()
+	server.CreateStream("payload_attributes")
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/events", server.HTTPHandler)
+
+	n.httpEventStreamServer = server
+
+	go func() {
+		addr := fmt.Sprintf("http://%s:%d", cfg.RPC.ListenAddr, cfg.RPC.ListenPort+1)
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			log.Crit("error starting http stream server", "err", err)
+		}
+	}()
+
 	return nil
 }
 
