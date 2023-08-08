@@ -96,17 +96,20 @@ def devnet_prestate(paths):
     wait_for_rpc_server('127.0.0.1:8545')
 
     log.info('Bringing up L2.')
-    run_command(['docker-compose', 'up', '-d', 'l2'], cwd=paths.ops_bedrock_dir, env={
+    run_command(['docker-compose', 'up', '-d', 'l2', 'l2-backup'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
     })
     wait_up(9545)
     wait_for_rpc_server('127.0.0.1:9545')
 
-    log.info('Bringing up the services.')
-    run_command(['docker-compose', 'up', '-d', 'op-proposer', 'op-batcher'], cwd=paths.ops_bedrock_dir, env={
-        'PWD': paths.ops_bedrock_dir,
-        'L2OO_ADDRESS': '0x6900000000000000000000000000000000000000'
-    })
+    wait_up(9500)
+    wait_for_rpc_server('127.0.0.1:9500')
+
+    log.info('Bringing up the services. No Plans')
+    # run_command(['docker-compose', 'up', '-d', 'op-proposer', 'op-batcher'], cwd=paths.ops_bedrock_dir, env={
+    #     'PWD': paths.ops_bedrock_dir,
+    #     'L2OO_ADDRESS': '0x6900000000000000000000000000000000000000'
+    # })
 
 # Bring up the devnet where the contracts are deployed to L1
 def devnet_deploy(paths):
@@ -192,18 +195,22 @@ def devnet_deploy(paths):
         shutil.move(devnet_cfg_backup, devnet_cfg_orig)
 
     log.info('Bringing up L2.')
-    run_command(['docker-compose', 'up', '-d', 'l2'], cwd=paths.ops_bedrock_dir, env={
+    run_command(['docker-compose', 'up', '-d', 'l2', 'l2-backup'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
     })
     wait_up(9545)
     wait_for_rpc_server('127.0.0.1:9545')
 
-    log.info('Bringing up everything else.')
-    run_command(['docker-compose', 'up', '-d', 'op-node', 'op-proposer', 'op-batcher'], cwd=paths.ops_bedrock_dir, env={
-        'PWD': paths.ops_bedrock_dir,
-        'L2OO_ADDRESS': addresses['L2OutputOracleProxy'],
-        'SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address']
-    })
+    wait_up(9500)
+    wait_for_rpc_server('127.0.0.1:9500')
+
+    log.info('Bringing up everything else. - No plans')
+    # run_command(['docker-compose', 'up', '-d', 'op-node', 'op-proposer', 'op-batcher'], cwd=paths.ops_bedrock_dir, env={
+    # run_command(['docker-compose', 'up', '-d', 'op-node'], cwd=paths.ops_bedrock_dir, env={
+    #     'PWD': paths.ops_bedrock_dir,
+    #     'L2OO_ADDRESS': addresses['L2OutputOracleProxy'],
+    #     'SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address']
+    # })
 
     log.info('Devnet ready.')
 

@@ -1,0 +1,6 @@
+opnode_*/
+
+# for now I compiled original op-node (repo: opptimism@e8b50b37b78d2ac5d1dcdbe0b260239e4f02db17)
+# you need binary for your system here
+op-node
+opnode_p2p_priv.txt
