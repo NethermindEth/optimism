@@ -11,6 +11,9 @@ BLOCK_SIGNER_PRIVATE_KEY="3e4bde571b86929bf08e2aaad9a6a1882664cd5e65b96fff7d03e1
 BLOCK_SIGNER_ADDRESS="0xca062b0fd91172d89bcd4bb084ac4e21972cc467"
 RPC_PORT="${RPC_PORT:-8545}"
 WS_PORT="${WS_PORT:-8546}"
+AUTH_RPC_PORT="${RPC_PORT:-8551}"
+METRICS_PORT="${WS_PORT:-6060}"
+P2P_PORT="${P2P_PORT:-30303}"
 
 if [ ! -d "$GETH_KEYSTORE_DIR" ]; then
 	echo "$GETH_KEYSTORE_DIR missing, running account import"
@@ -40,6 +43,7 @@ fi
 exec geth \
 	--datadir="$GETH_DATA_DIR" \
 	--verbosity="$VERBOSITY" \
+  --port="$P2P_PORT" \
 	--http \
 	--http.corsdomain="*" \
 	--http.vhosts="*" \
@@ -62,11 +66,11 @@ exec geth \
 	--allow-insecure-unlock \
 	--rpc.allow-unprotected-txs \
 	--authrpc.addr="0.0.0.0" \
-	--authrpc.port="8551" \
+	--authrpc.port="$AUTH_RPC_PORT" \
 	--authrpc.vhosts="*" \
 	--authrpc.jwtsecret=/config/jwt-secret.txt \
 	--gcmode=archive \
 	--metrics \
 	--metrics.addr=0.0.0.0 \
-	--metrics.port=6060 \
+	--metrics.port="$METRICS_PORT" \
 	"$@"

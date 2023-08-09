@@ -123,8 +123,8 @@ def devnet_prestate(paths):
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir},
     )
-    wait_up(8545)
-    wait_for_rpc_server("127.0.0.1:8545")
+    wait_up(8540)
+    wait_for_rpc_server("127.0.0.1:8540")
 
     log.info("Bringing up L2.")
     run_command(
@@ -132,8 +132,8 @@ def devnet_prestate(paths):
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir},
     )
-    wait_up(9545)
-    wait_for_rpc_server("127.0.0.1:9545")
+    wait_up(8541)
+    wait_for_rpc_server("127.0.0.1:8541")
 
     log.info("Bringing up the services. No Plans")
     run_command(
@@ -160,8 +160,8 @@ def devnet_deploy(paths):
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir},
     )
-    wait_up(8545)
-    wait_for_rpc_server("127.0.0.1:8545")
+    wait_up(8540)
+    wait_for_rpc_server("127.0.0.1:8540")
 
     log.info("Generating network config.")
     devnet_cfg_orig = pjoin(
@@ -190,7 +190,7 @@ def devnet_deploy(paths):
                 "--private-key",
                 private_key,
                 "--rpc-url",
-                "http://127.0.0.1:8545",
+                "http://127.0.0.1:8540",
                 "--broadcast",
             ],
             env={},
@@ -207,7 +207,7 @@ def devnet_deploy(paths):
                 "--sig",
                 "sync()",
                 "--rpc-url",
-                "http://127.0.0.1:8545",
+                "http://127.0.0.1:8540",
                 "--broadcast",
             ],
             env={},
@@ -277,8 +277,8 @@ def devnet_deploy(paths):
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir},
     )
-    wait_up(9545)
-    wait_for_rpc_server("127.0.0.1:9545")
+    wait_up(8541)
+    wait_for_rpc_server("127.0.0.1:8541")
 
     log.info("Bringing up everything else. - No plans")
     run_command(
@@ -293,34 +293,55 @@ def devnet_deploy(paths):
 
     log.info("Devnet ready.")
 
-    log.info("Bringing up MevBoost infra.")
-    run_command(
-        [
-            "docker-compose",
-            "up",
-            "-d",
-            "mev-relay-redis",
-            "mev-relay-db",
-            "mev-relay-adminer",
-        ],
-        cwd=paths.ops_bedrock_dir,
-        env={"PWD": paths.ops_bedrock_dir},
-    )
+    # log.info("Bringing up MevBoost infra.")
+    # run_command(
+    #     [
+    #         "docker-compose",
+    #         "up",
+    #         "-d",
+    #         "mev-relay-redis",
+    #         "mev-relay-db",
+    #         "mev-relay-adminer",
+    #     ],
+    #     cwd=paths.ops_bedrock_dir,
+    #     env={"PWD": paths.ops_bedrock_dir},
+    # )
+    #
+    # wait_up(5432)
+    #
+    # run_command(
+    #     [
+    #         "docker-compose",
+    #         "up",
+    #         "-d",
+    #         "mev-relay-migrations",
+    #         "mev-relay-api",
+    #         "mev-relay-housekeeper",
+    #     ],
+    #     cwd=paths.ops_bedrock_dir,
+    #     env={"PWD": paths.ops_bedrock_dir},
+    # )
 
-    wait_up(5432)
+    # log.info("Bringing up Builder.")
+    # run_command(
+    #     ["docker-compose", "up", "-d", "builder"],
+    #     cwd=paths.ops_bedrock_dir,
+    #     env={"PWD": paths.ops_bedrock_dir, "ENODE": enode},
+    # )
+    # wait_up(9500)
+    # wait_for_rpc_server("127.0.0.1:9500")
+    #
+    # log.info("Bringing up everything else. - No plans")
+    # run_command(
+    #     ["docker-compose", "up", "-d", "op-node-builder"],
+    #     cwd=paths.ops_bedrock_dir,
+    #     env={
+    #         "PWD": paths.ops_bedrock_dir,
+    #         "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
+    #         "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
+    #     },
+    # )
 
-    run_command(
-        [
-            "docker-compose",
-            "up",
-            "-d",
-            "mev-relay-migrations",
-            "mev-relay-api",
-            "mev-relay-housekeeper",
-        ],
-        cwd=paths.ops_bedrock_dir,
-        env={"PWD": paths.ops_bedrock_dir},
-    )
 
 
 def wait_for_rpc_server(url):
