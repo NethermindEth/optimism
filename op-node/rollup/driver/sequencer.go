@@ -116,7 +116,7 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 		d.log.Error("failed to marshal payload attributes", "err", err)
 	}
 
-	d.log.Info("broadcasting new payload attributes", "json", attrsData)
+	d.log.Info("broadcasting new payload attributes", "json", string(attrsData))
 	d.broadcastPayloadAttrs("payload_attributes", attrsData)
 
 	// If our next L2 block timestamp is beyond the Sequencer drift threshold, then we must produce
