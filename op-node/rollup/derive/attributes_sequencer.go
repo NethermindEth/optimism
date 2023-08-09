@@ -83,6 +83,8 @@ func (as *AttributesSequencer) PreparePayloadAttributes(ctx context.Context, l2H
 	if err != nil {
 		return nil, err
 	}
+
+	as.log.Info("broadcasting new payload attributes", "json", attrsData)
 	as.broadcastPayloadAttrs("payload_attributes", attrsData)
 	return attrs, nil
 }
