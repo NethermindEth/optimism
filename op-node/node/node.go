@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -90,7 +92,8 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 		return err
 	}
 	if err := n.initMev(ctx, cfg); err != nil {
-		return err
+		_ = err
+		// return err
 	}
 	if err := n.initL2(ctx, cfg, snapshotLog); err != nil {
 		return err
@@ -205,11 +208,7 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 	if err != nil {
 		return fmt.Errorf("failed to create Engine client: %w", err)
 	}
-	if n.mevSource == nil {
-		// HACK: it should go separately up to EngineQueue
-		// through all components: DerivationPipeline, Driver ...
-		return errors.New("MEV source has to be initialized before L2 (sorry)")
-	}
+
 	n.l2Source.MevClient = n.mevSource
 
 	if err := cfg.Rollup.ValidateL2Config(ctx, n.l2Source); err != nil {
@@ -281,7 +280,7 @@ func (n *OpNode) initHttpEventStreamServer(ctx context.Context, cfg *Config) err
 	n.httpEventStreamServer = server
 
 	go func() {
-		addr := fmt.Sprintf("http://%s:%d", cfg.RPC.ListenAddr, cfg.RPC.ListenPort+1)
+		addr := net.JoinHostPort(cfg.RPC.ListenAddr, strconv.Itoa(cfg.RPC.ListenPort+1))
 		if err := http.ListenAndServe(addr, mux); err != nil {
 			log.Crit("error starting http stream server", "err", err)
 		}
