@@ -10,6 +10,8 @@ volumes:
   l2_relay_data:
   op_log:
   golang_cache:
+  psql_data:
+    driver: local
 
 
 services:
@@ -186,6 +188,8 @@ services:
       OP_PROPOSER_ALLOW_NON_FINALIZED: "true"
 
 
+
+
   stateviz:
     build:
       context: ../
@@ -200,3 +204,85 @@ services:
     volumes:
       - "golang_cache:/root/go/pkg/mod"
       - op_log:/op_log:ro
+
+
+  # Mev Boost part
+  mev-relay-redis:
+    image: redis
+    restart: always
+    ports:
+      - '6379:6379'
+
+#  memcached:
+#    image: memcached
+#    restart: always
+#    ports:
+#      - '11211:11211'
+
+  mev-relay-db:
+    image: postgres
+    restart: always
+    volumes:
+      - 'psql_data:/var/lib/postgresql/data'
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+
+  # phpMyAdmin-like DB browser, localhost:8093
+  mev-relay-adminer:
+    image: adminer
+    restart: always
+    depends_on:
+      - mev-relay-db
+    ports:
+      - '8093:8080'
+    environment:
+      ADMINER_PLUGINS: tables-filter tinymce
+
+  mev-relay-migrations:
+    build:
+      context: ../../mev-relay/
+    depends_on:
+      - mev-relay-db
+    command:
+      tool migrate --db "postgresql://postgres:postgres@mev-relay-db:5432/postgres?sslmode=disable"
+
+  mev-relay-api:
+    build:
+      context: ../../mev-relay/
+    depends_on:
+      mev-relay-migrations:
+        condition: service_completed_successfully
+      mev-relay-redis:
+        condition: service_started
+    command: >
+      api
+      --debug
+      --db "postgresql://postgres:postgres@mev-relay-db:5432/postgres?sslmode=disable"
+      --redis-uri "mev-relay-redis:6379"
+      --listen-addr "0.0.0.0:9062"
+      --beacon-uris "http://op-node:8546"
+      --secret-key "0x3dd5f69c2e334a81ee84deb2f2da0e460b0b90aca2cd2e7d948cce056982c119"
+    environment:
+      - DISABLE_PAYLOAD_DATABASE_STORAGE=1
+      - LOG_LEVEL=debug
+
+  # flags
+  # --pprof
+
+  mev-relay-housekeeper:
+    build:
+      context: ../../mev-relay/
+    depends_on:
+      mev-relay-migrations:
+        condition: service_completed_successfully
+      mev-relay-redis:
+        condition: service_started
+    command: >
+      housekeeper
+      --db "postgresql://postgres:postgres@mev-relay-db:5432/postgres?sslmode=disable"
+    environment:
+      - LOG_LEVEL=debug
