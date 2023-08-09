@@ -123,8 +123,8 @@ def devnet_prestate(paths):
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir},
     )
-    wait_up(8540)
-    wait_for_rpc_server("127.0.0.1:8540")
+    wait_up(8545)
+    wait_for_rpc_server("127.0.0.1:8545")
 
     log.info("Bringing up L2.")
     run_command(
@@ -160,8 +160,8 @@ def devnet_deploy(paths):
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir},
     )
-    wait_up(8540)
-    wait_for_rpc_server("127.0.0.1:8540")
+    wait_up(8545)
+    wait_for_rpc_server("127.0.0.1:8545")
 
     log.info("Generating network config.")
     devnet_cfg_orig = pjoin(
@@ -190,7 +190,7 @@ def devnet_deploy(paths):
                 "--private-key",
                 private_key,
                 "--rpc-url",
-                "http://127.0.0.1:8540",
+                "http://127.0.0.1:8545",
                 "--broadcast",
             ],
             env={},
@@ -207,7 +207,7 @@ def devnet_deploy(paths):
                 "--sig",
                 "sync()",
                 "--rpc-url",
-                "http://127.0.0.1:8540",
+                "http://127.0.0.1:8545",
                 "--broadcast",
             ],
             env={},
@@ -253,7 +253,7 @@ def devnet_deploy(paths):
                 "genesis",
                 "l2",
                 "--l1-rpc",
-                "http://localhost:8540",
+                "http://localhost:8545",
                 "--deploy-config",
                 devnet_cfg_orig,
                 "--deployment-dir",
