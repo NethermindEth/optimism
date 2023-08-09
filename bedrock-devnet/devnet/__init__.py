@@ -253,7 +253,7 @@ def devnet_deploy(paths):
                 "genesis",
                 "l2",
                 "--l1-rpc",
-                "http://localhost:8545",
+                "http://localhost:8540",
                 "--deploy-config",
                 devnet_cfg_orig,
                 "--deployment-dir",
