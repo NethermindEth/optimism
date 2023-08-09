@@ -20,7 +20,7 @@ services:
       - "P2P_PORT=30300"
       - "RPC_PORT=8540"
       - "AUTH_RPC_PORT=8550"
-      - "WS_PORT=8580"
+      - "WS_PORT=8560"
       - "METRICS_PORT=6060"
 
   l2:
@@ -41,7 +41,7 @@ services:
       - "P2P_PORT=30301"
       - "RPC_PORT=8541"
       - "AUTH_RPC_PORT=8551"
-      - "WS_PORT=8581"
+      - "WS_PORT=8561"
       - "METRICS_PORT=6061"
 
   op-node:
@@ -54,7 +54,7 @@ services:
       dockerfile: ./op-node/Dockerfile
     command:
       - op-node
-      - --l1=ws://127.0.0.1:8580
+      - --l1=ws://127.0.0.1:8560
       - --l2=http://127.0.0.1:8551
       - --l2.jwt-secret=/config/test-jwt-secret.txt
       - --sequencer.enabled
@@ -177,7 +177,7 @@ services:
       - "P2P_PORT=30302"
       - "RPC_PORT=8542"
       - "AUTH_RPC_PORT=8552"
-      - "WS_PORT=8582"
+      - "WS_PORT=8562"
       - "METRICS_PORT=6062"
 
   op-node-builder:
@@ -192,7 +192,7 @@ services:
       dockerfile: ./op-node/Dockerfile
     command:
       - op-node
-      - --l1=ws://127.0.0.1:8580
+      - --l1=ws://127.0.0.1:8560
       - --l2=http://127.0.0.1:8552
       - --l2.jwt-secret=/config/test-jwt-secret.txt
       - --rollup.config=/rollup.json
