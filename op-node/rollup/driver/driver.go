@@ -119,7 +119,7 @@ func NewDriver(driverCfg *Config, cfg *rollup.Config, l2 L2Chain, l1 L1Chain, al
 	derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l2, attrsSequencer, metrics)
 	engine := derivationPipeline
 	meteredEngine := NewMeteredEngine(cfg, engine, metrics, log)
-	sequencer := NewSequencer(log, cfg, meteredEngine, attrBuilder, findL1Origin, metrics)
+	sequencer := NewSequencer(log, cfg, meteredEngine, attrBuilder, findL1Origin, metrics, broadcastPayloadAttrs)
 
 	return &Driver{
 		l1State:          l1State,
