@@ -322,25 +322,25 @@ def devnet_deploy(paths):
     #     env={"PWD": paths.ops_bedrock_dir},
     # )
 
-    # log.info("Bringing up Builder.")
-    # run_command(
-    #     ["docker-compose", "up", "-d", "builder"],
-    #     cwd=paths.ops_bedrock_dir,
-    #     env={"PWD": paths.ops_bedrock_dir, "ENODE": enode},
-    # )
-    # wait_up(9500)
-    # wait_for_rpc_server("127.0.0.1:9500")
-    #
-    # log.info("Bringing up everything else. - No plans")
-    # run_command(
-    #     ["docker-compose", "up", "-d", "op-node-builder"],
-    #     cwd=paths.ops_bedrock_dir,
-    #     env={
-    #         "PWD": paths.ops_bedrock_dir,
-    #         "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
-    #         "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
-    #     },
-    # )
+    log.info("Bringing up Builder.")
+    run_command(
+        ["docker-compose", "up", "-d", "builder"],
+        cwd=paths.ops_bedrock_dir,
+        env={"PWD": paths.ops_bedrock_dir},
+    )
+    wait_up(8542)
+    wait_for_rpc_server("127.0.0.1:8542")
+
+    log.info("Bringing up op-node for builder")
+    run_command(
+        ["docker-compose", "up", "-d", "op-node-builder"],
+        cwd=paths.ops_bedrock_dir,
+        env={
+            "PWD": paths.ops_bedrock_dir,
+            "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
+            "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
+        },
+    )
 
 
 
