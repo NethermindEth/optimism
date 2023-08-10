@@ -360,7 +360,7 @@ def get_enr(container_id, cwd):
     for _ in range(10):
         try:
             logs = subprocess.check_output(
-                f"docker-compose logs {container_id} | grep enr", shell=True, text=True, cwd=cwd
+                f"docker-compose logs {container_id} 2>&1 | grep enr", shell=True, text=True, cwd=cwd
             )
             for line in logs.splitlines():
                 enr_value = extract_enr_value(line)
@@ -383,7 +383,7 @@ def get_enode(container_id, cwd):
 
     for _ in range(10):
         try:
-            logs = subprocess.check_output( f"docker-compose logs {container_id} | grep enr", shell=True, text=True, cwd=cwd)
+            logs = subprocess.check_output( f"docker-compose logs {container_id} 2>&1 | grep enr", shell=True, text=True, cwd=cwd)
             for line in logs.splitlines():
                 enode_value = extract_enode_value(line)
                 if enode_value:
