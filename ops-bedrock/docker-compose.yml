@@ -180,7 +180,7 @@ services:
     environment:
       - "P2P_PORT=30302"
       - "RPC_PORT=8542"
-      - "AUTH_RPC_PORT=8552"
+      - "AUTH_RPC_PORT=12999"
       - "WS_PORT=8562"
       - "METRICS_PORT=6062"
 
@@ -197,7 +197,7 @@ services:
     command:
       - op-node
       - --l1=ws://127.0.0.1:8560
-      - --l2=http://127.0.0.1:8552
+      - --l2=http://127.0.0.1:12999
       - --l2.jwt-secret=/config/test-jwt-secret.txt
       - --rollup.config=/rollup.json
       - --rpc.addr=0.0.0.0
