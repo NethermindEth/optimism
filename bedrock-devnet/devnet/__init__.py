@@ -295,35 +295,6 @@ def devnet_deploy(paths):
 
     log.info("Devnet ready.")
 
-    # log.info("Bringing up MevBoost infra.")
-    # run_command(
-    #     [
-    #         "docker-compose",
-    #         "up",
-    #         "-d",
-    #         "mev-relay-redis",
-    #         "mev-relay-db",
-    #         "mev-relay-adminer",
-    #     ],
-    #     cwd=paths.ops_bedrock_dir,
-    #     env={"PWD": paths.ops_bedrock_dir},
-    # )
-    #
-    # wait_up(5432)
-    #
-    # run_command(
-    #     [
-    #         "docker-compose",
-    #         "up",
-    #         "-d",
-    #         "mev-relay-migrations",
-    #         "mev-relay-api",
-    #         "mev-relay-housekeeper",
-    #     ],
-    #     cwd=paths.ops_bedrock_dir,
-    #     env={"PWD": paths.ops_bedrock_dir},
-    # )
-
     log.info("Bringing up Builder.")
     run_command(
         ["docker-compose", "up", "-d", "l2-builder"],
@@ -332,6 +303,9 @@ def devnet_deploy(paths):
     )
     wait_up(8542)
     wait_for_rpc_server("127.0.0.1:8542")
+
+    wait_up(8552)
+    time.sleep(5)
 
     log.info("Bringing up op-node for builder")
     run_command(
