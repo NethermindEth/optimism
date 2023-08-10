@@ -59,8 +59,9 @@ func (as *AttributesSequencer) PreparePayloadAttributes(ctx context.Context, l2H
 		return nil, err
 	}
 
-	txs := make(types.Transactions, 0, len(attrs.Transactions))
+	txs := make(types.Transactions, len(attrs.Transactions))
 	for i, tx := range attrs.Transactions {
+		txs[i] = new(types.Transaction)
 		txs[i].UnmarshalBinary(tx)
 	}
 
