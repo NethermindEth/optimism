@@ -305,19 +305,18 @@ def devnet_deploy(paths):
     wait_for_rpc_server("127.0.0.1:8542")
 
     wait_up(8552)
-    time.sleep(5)
 
-    log.info("Bringing up op-node for builder")
-    run_command(
-        ["docker-compose", "up", "-d", "op-node-builder"],
-        cwd=paths.ops_bedrock_dir,
-        env={
-            "PWD": paths.ops_bedrock_dir,
-            "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
-            "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
-            "ENR": enr,
-        },
-    )
+    # log.info("Bringing up op-node for builder")
+    # run_command(
+    #     ["docker-compose", "up", "-d", "op-node-builder"],
+    #     cwd=paths.ops_bedrock_dir,
+    #     env={
+    #         "PWD": paths.ops_bedrock_dir,
+    #         "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
+    #         "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
+    #         "ENR": enr,
+    #     },
+    # )
 
 
 import re
