@@ -279,7 +279,7 @@ def devnet_deploy(paths):
     )
     wait_up(8541)
     wait_for_rpc_server("127.0.0.1:8541")
-    enode = get_enode("l2")
+    enode = get_enode("l2", paths.ops_bedrock_dir)
 
     log.info("Bringing up everything else.")
     run_command(
@@ -291,7 +291,7 @@ def devnet_deploy(paths):
             "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
         },
     )
-    enr = get_enr("op-node")
+    enr = get_enr("op-node", paths.ops_bedrock_dir)
 
     log.info("Devnet ready.")
 
@@ -350,17 +350,17 @@ import re
 import subprocess
 
 
-def get_enr(container_id):
+def get_enr(container_id, cwd):
     def extract_enr_value(log_line):
         match = re.search(r"enr=(\S+)", log_line)
         if match:
             return match.group(1)
         return None
 
-    while True:
+    for _ in range(10):
         try:
             logs = subprocess.check_output(
-                f"docker logs {container_id} | grep enr", shell=True, text=True
+                f"docker-compose logs {container_id} | grep enr", shell=True, text=True, cwd=cwd
             )
             for line in logs.splitlines():
                 enr_value = extract_enr_value(line)
@@ -371,19 +371,19 @@ def get_enr(container_id):
             print(f"Couldn't get enr, retrying: {e}")
             time.sleep(1)
 
+    raise Exception("Timing out while waiting for enr")
 
-def get_enode(container_id):
+
+def get_enode(container_id, cwd):
     def extract_enode_value(log_line):
         match = re.search(r"self=(\S+)", log_line)
         if match:
             return match.group(1)
         return None
 
-    while True:
+    for _ in range(10):
         try:
-            logs = subprocess.check_output(
-                f"docker logs {container_id} | grep enr", shell=True, text=True
-            )
+            logs = subprocess.check_output( f"docker-compose logs {container_id} | grep enr", shell=True, text=True, cwd=cwd)
             for line in logs.splitlines():
                 enode_value = extract_enode_value(line)
                 if enode_value:
@@ -392,6 +392,8 @@ def get_enode(container_id):
         except Exception as e:
             print(f"Couldn't get enode, retrying: {e}")
             time.sleep(1)
+
+    raise Exception("Timing out while waiting for enode")
 
 
 def wait_for_rpc_server(url):
