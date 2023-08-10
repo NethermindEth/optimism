@@ -65,7 +65,7 @@ services:
       - --rpc.addr=0.0.0.0
       - --rpc.port=9541 # 9541 also busy
       - --p2p.advertise.ip
-      - --p2p.listen.ip=0.0.0.0
+      - --p2p.listen.ip=127.0.0.1
       - --p2p.listen.tcp=40401
       - --p2p.listen.udp=40401
       - --p2p.scoring.peers=light
