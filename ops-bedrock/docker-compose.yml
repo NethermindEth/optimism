@@ -154,9 +154,7 @@ services:
   l2-builder:
     network_mode: host
     build:
-      # context: ../../fb-builder/
-      context: .
-      dockerfile: Dockerfile.l2
+      context: ../../fb-builder/
     expose:
       - 8552
     depends_on:
