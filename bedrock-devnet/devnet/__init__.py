@@ -399,7 +399,9 @@ def wait_for_rpc_server(url):
 
 def run_command(args, check=True, shell=False, cwd=None, env=None):
     env = env if env else {}
+    print("Running command: " + " ".join(args) + f" with env {env}")
     return subprocess.run(
+
         args, check=check, shell=shell, env={**os.environ, **env}, cwd=cwd
     )
 

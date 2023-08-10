@@ -499,7 +499,7 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 	eq.logSyncProgress("unsafe payload from sequencer")
 
 	// no use for attrs here, boadcasting inside of PreparePayloadAttributes is enough
-	_, err = eq.attrsSequencer.PreparePayloadAttributes(ctx, eq.unsafeHead)
+	// _, err = eq.attrsSequencer.PreparePayloadAttributes(ctx, eq.unsafeHead)
 
 	return err
 }

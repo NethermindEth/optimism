@@ -50,6 +50,7 @@ services:
       - "/bin/sh"
       - "/entrypoint.sh"
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
+      - "--nodekeyhex=b02c978bf3fb3ba2e491d4d8a715c14005160db258e45ef943e161161ace2992"
       - "--nat=extip:172.20.0.6"
 
   op-node:
@@ -179,7 +180,7 @@ services:
       static:
         ipv4_address: 172.20.0.8
       standard:
-    build:
+    build: # with this the EL is not able to sync
       context: ../../fb-builder/
     # build:
     #   context: .
@@ -200,15 +201,14 @@ services:
       - "/bin/sh"
       - "/entrypoint.sh"
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
-      - "--builder"
-      - "--builder.local_relay"
-      - "--builder.seconds_in_slot=2"
-      - "--builder.submission_offset=1s"
-      - "--builder.beacon_endpoints=http://op-node:8545" # connect to sequencer for this
-      - "--miner.extradata=IlluminateDmocratizeDstribute"
-      - "--miner.algotype=greedy"
-    environment:
-      - "BOOTNODES=${ENODE}"
+      # - "--builder"
+      # - "--builder.local_relay"
+      # - "--builder.seconds_in_slot=2"
+      # - "--builder.submission_offset=1s"
+      # - "--builder.beacon_endpoints=http://op-node:8545" # connect to sequencer for this
+      # - "--miner.extradata=IlluminateDmocratizeDstribute"
+      # - "--miner.algotype=greedy"
+      - "--bootnodes=enode://95f711311375a92cbc3c16f4f1e9147f69fe45ff73c3ce71202d3e78628bd545fb2441c539165c48361e1cbbb0d06d19e46e80ecee8729d2810932092dc0143d@172.20.0.6:30303"
 
   op-node-builder:
     restart: on-failure:5
