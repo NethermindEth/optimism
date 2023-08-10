@@ -106,7 +106,6 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 func NewMevEndpointConfig(ctx *cli.Context) node.MevEndpointConfig {
 	return node.MevEndpointConfig{
 		MevEndpointAddr: ctx.String(flags.MEVBoostAddr.Name),
-		MevBlsPubKey: ctx.String(flags.MEVBoostBLSPubKey.Name),
 	}
 }
 

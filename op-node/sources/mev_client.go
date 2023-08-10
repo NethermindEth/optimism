@@ -19,27 +19,23 @@ const PathGetMevPayload = "eth/v1/builder/blinded_blocks"
 
 type MevClient struct {
 	mevEndpointAddr string
-	pubKey          string
 	log             log.Logger
 }
 
-func NewMevClient(log log.Logger, mevEndpointAddr string, pubKey string) (*MevClient, error) {
+func NewMevClient(log log.Logger, mevEndpointAddr string) (*MevClient, error) {
 	if mevEndpointAddr == "" {
 		return nil, errors.New("empty MEV Endpoint Address")
 	}
-	if len(pubKey) != 96 {
-		return nil, errors.New("invalid public key")
-	}
+
 	return &MevClient{
 		mevEndpointAddr: mevEndpointAddr,
-		pubKey:          pubKey,
 		log:             log,
 	}, nil
 }
 
 func (mc *MevClient) GetMevPayload(ctx context.Context, parent common.Hash) (*eth.ExecutionPayload, error) {
 	responsePayload := new(fbSignedBlindedBeaconBlock)
-	url := fmt.Sprintf("%s/%s/%s/%s", mc.mevEndpointAddr, PathGetMevPayload, parent.Hex(), mc.pubKey)
+	url := fmt.Sprintf("%s/%s/%s", mc.mevEndpointAddr, PathGetMevPayload, parent.Hex())
 	httpClient := http.Client{Timeout: 10 * time.Second}
 
 	if _, err := SendHTTPRequestWithRetries(
