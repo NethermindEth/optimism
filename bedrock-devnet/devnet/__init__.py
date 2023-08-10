@@ -304,7 +304,7 @@ def devnet_deploy(paths):
     wait_up(8542)
     wait_for_rpc_server("127.0.0.1:8542")
 
-    wait_up(12999)
+    wait_up(8552)
     time.sleep(5)
 
     log.info("Bringing up op-node for builder")
