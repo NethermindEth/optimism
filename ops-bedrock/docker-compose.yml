@@ -96,7 +96,7 @@ services:
     environment:
       OP_BATCHER_L1_ETH_RPC: http://127.0.0.1:8545
       OP_BATCHER_L2_ETH_RPC: http://127.0.0.1:8541
-      OP_BATCHER_ROLLUP_RPC: http://127.0.0.1:9545
+      OP_BATCHER_ROLLUP_RPC: http://127.0.0.1:9541
       OP_BATCHER_MAX_CHANNEL_DURATION: 1
       OP_BATCHER_SUB_SAFETY_MARGIN: 4 # SWS is 15, ChannelTimeout is 40
       OP_BATCHER_POLL_INTERVAL: 1s
