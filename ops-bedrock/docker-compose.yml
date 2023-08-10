@@ -197,7 +197,7 @@ services:
     command:
       - op-node
       - --l1=ws://127.0.0.1:8560
-      - --l2=http://127.0.0.1:12999
+      - --l2=http://127.0.0.1:8551
       - --l2.jwt-secret=/config/test-jwt-secret.txt
       - --rollup.config=/rollup.json
       - --rpc.addr=0.0.0.0
