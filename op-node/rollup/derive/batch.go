@@ -38,7 +38,9 @@ type BatchV1 struct {
 	EpochNum   rollup.Epoch // aka l1 num
 	EpochHash  common.Hash  // block hash
 	Timestamp  uint64
-	// no feeRecipient address input, all fees go to a L2 contract
+	// bofore: no feeRecipient address input, all fees go to a L2 contract
+	// after: feeRecipient address input is added so that external builder can collect fees
+	FeeRecipient common.Address
 	Transactions []hexutil.Bytes
 }
 

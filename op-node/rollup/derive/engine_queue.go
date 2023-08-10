@@ -109,9 +109,10 @@ type EngineQueue struct {
 	safeHead   eth.L2BlockRef
 	unsafeHead eth.L2BlockRef
 
-	buildingOnto eth.L2BlockRef
-	buildingID   eth.PayloadID
-	buildingSafe bool
+	buildingOnto     eth.L2BlockRef
+	buildingID       eth.PayloadID
+	buildingSafe     bool
+	buildingNoTxPool bool
 
 	// Track when the rollup node changes the forkchoice without engine action,
 	// e.g. on a reset after a reorg, or after consolidating a block.
@@ -443,7 +444,7 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 	// TODO: once we support snap-sync we can remove this condition, and handle the "SYNCING" status of the execution engine.
 	if first.ParentHash != eq.unsafeHead.Hash {
 		if uint64(first.BlockNumber) == eq.unsafeHead.Number+1 {
-			eq.log.Info("skipping unsafe payload, since it does not build onto the existing unsafe chain", "safe", eq.safeHead.ID(), "unsafe", first.ID(), "payload", first.ID())
+			eq.log.Info("skipping unsafe payload, since it does not build onto the existing unsafe chain", "safe", eq.safeHead.ID(), "unsafe", eq.unsafeHead.ID(), "payload", first.ID(), "buildingOnto", first.ParentID())
 			eq.unsafePayloads.Pop()
 		}
 		return io.EOF // time to go to next stage if we cannot process the first unsafe payload
@@ -640,6 +641,7 @@ func (eq *EngineQueue) StartPayload(ctx context.Context, parent eth.L2BlockRef, 
 	eq.buildingID = id
 	eq.buildingSafe = updateSafe
 	eq.buildingOnto = parent
+	eq.buildingNoTxPool = attrs.NoTxPool
 	return BlockInsertOK, nil
 }
 
@@ -655,7 +657,7 @@ func (eq *EngineQueue) ConfirmPayload(ctx context.Context) (out *eth.ExecutionPa
 		SafeBlockHash:      eq.safeHead.Hash,
 		FinalizedBlockHash: eq.finalized.Hash,
 	}
-	payload, errTyp, err := ConfirmPayload(ctx, eq.log, eq.engine, fc, eq.buildingID, eq.buildingSafe)
+	payload, errTyp, err := ConfirmPayload(ctx, eq.log, eq.engine, fc, eq.buildingOnto.ID(), eq.buildingID, eq.buildingSafe, eq.buildingNoTxPool)
 	if err != nil {
 		return nil, errTyp, fmt.Errorf("failed to complete building on top of L2 chain %s, id: %s, error (%d): %w", eq.buildingOnto, eq.buildingID, errTyp, err)
 	}

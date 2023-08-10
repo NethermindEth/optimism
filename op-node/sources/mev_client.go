@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const PathGetMevPayload = "eth/v1/builder/blinded_blocks"
+const PathGetMevPayload = "eth/v1/builder/get_payload"
 
 type MevClient struct {
 	mevEndpointAddr string
@@ -34,11 +34,11 @@ func NewMevClient(log log.Logger, mevEndpointAddr string) (*MevClient, error) {
 }
 
 func (mc *MevClient) GetMevPayload(ctx context.Context, parent common.Hash) (*eth.ExecutionPayload, error) {
-	responsePayload := new(fbSignedBlindedBeaconBlock)
+	responsePayload := new(eth.ExecutionPayload)
 	url := fmt.Sprintf("%s/%s/%s", mc.mevEndpointAddr, PathGetMevPayload, parent.Hex())
 	httpClient := http.Client{Timeout: 10 * time.Second}
 
-	if _, err := SendHTTPRequestWithRetries(
+	if code, err := SendHTTPRequestWithRetries(
 		ctx,
 		httpClient,
 		"GET",
@@ -49,9 +49,13 @@ func (mc *MevClient) GetMevPayload(ctx context.Context, parent common.Hash) (*et
 		5,
 		mc.log); err != nil {
 		return nil, err
+	} else if code == http.StatusNoContent {
+		mc.log.Info("Could not get MEV payload", "parent", parent.Hex())
+		return nil, errors.New("could not get MEV payload")
 	}
 
-	return responsePayload.Capella.Message.Body.ExecutionPayloadHeader, nil
+	mc.log.Info("Got MEV payload", "payload", responsePayload)
+	return responsePayload, nil
 }
 
 var (
@@ -110,6 +114,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	}
 
 	if dst != nil {
+		log.Info("Decoding response body")
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return resp.StatusCode, fmt.Errorf("could not read response body: %w", err)
@@ -147,31 +152,10 @@ func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method,
 
 		code, err = SendHTTPRequest(ctx, client, method, url, headers, payload, dst)
 		if err != nil {
-			log.Error("error making request to relay, retrying", err, attempts)
+			log.Error("error making request to relay, retrying", "err", err, "attempts", attempts)
 			time.Sleep(100 * time.Millisecond) // note: this timeout is only applied between retries, it does not delay the initial request!
 			continue
 		}
 		return code, nil
 	}
-}
-
-// We need this types - but think we need to import them right now
-// common "github.com/flashbots/mev-boost-relay/common"
-// capella "github.com/attestantio/go-eth2-client/api/v1/capella"
-// capella2 "github.com/attestantio/go-eth2-client/spec/capella"
-
-type capellaBlindedBeaconBlockBody struct {
-	ExecutionPayloadHeader *eth.ExecutionPayload
-}
-
-type capellaBlindedBeaconBlock struct {
-	Body *capellaBlindedBeaconBlockBody
-}
-
-type capellaSignedBlindedBeaconBlock struct {
-	Message *capellaBlindedBeaconBlock
-}
-
-type fbSignedBlindedBeaconBlock struct {
-	Capella *capellaSignedBlindedBeaconBlock
 }

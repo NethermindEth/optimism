@@ -43,7 +43,7 @@ exec geth \
 	--syncmode=full \
 	--networkid=$CHAIN_ID \
 	--rpc.allow-unprotected-txs \
-	--authrpc.addr="0.0.0.0" \
+	--authrpc.addr=0.0.0.0 \
 	--authrpc.port="$AUTH_RPC_PORT" \
 	--authrpc.vhosts="*" \
 	--authrpc.jwtsecret=/config/jwt-secret.txt \
