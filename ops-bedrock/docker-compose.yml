@@ -132,7 +132,7 @@ services:
       OP_PROPOSER_METRICS_ENABLED: "true"
       OP_PROPOSER_METRICS_PORT: 7071
       OP_PROPOSER_ALLOW_NON_FINALIZED: "true"
-      OP_PROPOSER_RPC_PORT: 9641
+      OP_PROPOSER_RPC_PORT: 9642
 
 
   stateviz:
@@ -153,7 +153,9 @@ services:
   l2-builder:
     network_mode: host
     build:
-      context: ../../fb-builder/
+      # context: ../../fb-builder/
+      context: .
+      dockerfile: Dockerfile.l2
     depends_on:
       - l1
       - l2
