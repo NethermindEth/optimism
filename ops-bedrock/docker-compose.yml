@@ -202,7 +202,7 @@ services:
       - --rpc.port=9543 # 9544 also busy
       - --rpc.enable-admin
       # - --p2p.static="enr:-JW4QCAcwb8v2A25u8Cj-MSdgJ2cOL3DyyWdqepSiiP2qn-KefYIOf2Ih8we8_DJ3lbyqpVDQy4fhQP2hVrZPza3VoKGAYnamr9bgmlkgnY0h29wc3RhY2uDhQcAiXNlY3AyNTZrMaEDTRL4-ZzyDFRQUUbxlPeQapcEQ62P_GrmunkyP7Ff8iiDdGNwgiMrg3VkcIIjKw"
-      - "--p2p.static=${ENR}"
+      - --p2p.static=${ENR}
     volumes:
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
       - "${PWD}/../.devnet/rollup.json:/rollup.json"
