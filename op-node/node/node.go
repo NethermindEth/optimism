@@ -83,38 +83,49 @@ func New(ctx context.Context, cfg *Config, log log.Logger, snapshotLog log.Logge
 
 func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) error {
 	if err := n.initTracer(ctx, cfg); err != nil {
+		n.log.Error("Error initializing tracer", "err", err)
 		return err
 	}
 	if err := n.initL1(ctx, cfg); err != nil {
+		n.log.Error("Error initializing L1", "err", err)
 		return err
 	}
 	if err := n.initRuntimeConfig(ctx, cfg); err != nil {
+		n.log.Error("Error initializing runtime config", "err", err)
 		return err
 	}
 	if err := n.initMev(ctx, cfg); err != nil {
+		n.log.Error("Error initializing MEV", "err", err)
 		_ = err
 		// return err
 	}
 	if err := n.initL2(ctx, cfg, snapshotLog); err != nil {
+		n.log.Error("Error initializing L2", "err", err)
 		return err
 	}
 	if err := n.initRPCSync(ctx, cfg); err != nil {
+		n.log.Error("Error initializing RPC sync", "err", err)
 		return err
 	}
 	if err := n.initP2PSigner(ctx, cfg); err != nil {
+		n.log.Error("Error initializing P2P signer")
 		return err
 	}
 	if err := n.initP2P(ctx, cfg); err != nil {
+		n.log.Error("Error initializing P2P", "err", err)
 		return err
 	}
 	// Only expose the server at the end, ensuring all RPC backend components are initialized.
 	if err := n.initRPCServer(ctx, cfg); err != nil {
+		n.log.Error("Error initializing RPC server", "err", err)
 		return err
 	}
 	if err := n.initHttpEventStreamServer(ctx, cfg); err != nil {
+		n.log.Error("Error initializing HTTP event stream server", "err", err)
 		return err
 	}
 	if err := n.initMetricsServer(ctx, cfg); err != nil {
+		n.log.Error("Error initializing metrics server", "err", err)
 		return err
 	}
 	return nil
