@@ -169,6 +169,7 @@ services:
       - "--builder"
       - "--builder.local_relay"
       - "--builder.seconds_in_slot=2"
+      - "--builder.submission_offset=1"
       - "--builder.beacon_endpoints=http://127.0.0.1:9541" # connect to sequencer for this
       - "--miner.extradata=IlluminateDmocratizeDstribute"
       - "--miner.algotype=greedy"
