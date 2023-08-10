@@ -105,12 +105,12 @@ func (cfg *Config) ValidateL1Config(ctx context.Context, client L1Client) error 
 func (cfg *Config) ValidateL2Config(ctx context.Context, client L2Client) error {
 	// Validate the L2 Client Chain ID
 	if err := cfg.CheckL2ChainID(ctx, client); err != nil {
-		return err
+		return fmt.Errorf("l2 chain ID error: %v", err)
 	}
 
 	// Validate the Rollup L2 Genesis Blockhash
 	if err := cfg.CheckL2GenesisBlockHash(ctx, client); err != nil {
-		return err
+		return fmt.Errorf("l2 genesis block hash error: %v", err)
 	}
 
 	return nil
