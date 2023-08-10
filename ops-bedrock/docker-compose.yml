@@ -163,7 +163,7 @@ services:
     volumes:
       - "l2_builder_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
-      - "${PWD}/test-jwt-secret-1.txt:/config/test-jwt-secret.txt"
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
     entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
       - "/bin/sh"
       - "/entrypoint.sh"
@@ -206,6 +206,6 @@ services:
       # - --p2p.static="enr:-JW4QCAcwb8v2A25u8Cj-MSdgJ2cOL3DyyWdqepSiiP2qn-KefYIOf2Ih8we8_DJ3lbyqpVDQy4fhQP2hVrZPza3VoKGAYnamr9bgmlkgnY0h29wc3RhY2uDhQcAiXNlY3AyNTZrMaEDTRL4-ZzyDFRQUUbxlPeQapcEQ62P_GrmunkyP7Ff8iiDdGNwgiMrg3VkcIIjKw"
       - --p2p.bootnodes=${ENR}
     volumes:
-      - "${PWD}/test-jwt-secret-1.txt:/config/test-jwt-secret.txt"
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
       - "${PWD}/../.devnet/rollup.json:/rollup.json"
       - op_log:/op_log
