@@ -277,8 +277,8 @@ def devnet_deploy(paths):
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir},
     )
-    wait_up(8541)
-    wait_for_rpc_server("127.0.0.1:8541")
+    wait_up(9545)
+    wait_for_rpc_server("127.0.0.1:9545")
     enode = get_enode("l2", paths.ops_bedrock_dir)
 
     log.info("Bringing up everything else.")
@@ -293,30 +293,28 @@ def devnet_deploy(paths):
     )
     enr = get_enr("op-node", paths.ops_bedrock_dir)
 
-    log.info("Devnet ready.")
-
-    log.info("Bringing up Builder.")
+    log.info(f"Bringing up Builder. Bootnode={enode}")
     run_command(
         ["docker-compose", "up", "-d", "l2-builder"],
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir, "ENODE": enode},
     )
-    wait_up(8542)
-    wait_for_rpc_server("127.0.0.1:8542")
+    wait_up(9500)
+    wait_for_rpc_server("127.0.0.1:9500")
 
-    wait_up(8552)
+    log.info(f"Bringing up op-node for builder. Bootnode={enr}")
+    run_command(
+        ["docker-compose", "up", "-d", "op-node-builder"],
+        cwd=paths.ops_bedrock_dir,
+        env={
+            "PWD": paths.ops_bedrock_dir,
+            "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
+            "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
+            "ENR": enr,
+        },
+    )
 
-    # log.info("Bringing up op-node for builder")
-    # run_command(
-    #     ["docker-compose", "up", "-d", "op-node-builder"],
-    #     cwd=paths.ops_bedrock_dir,
-    #     env={
-    #         "PWD": paths.ops_bedrock_dir,
-    #         "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
-    #         "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
-    #         "ENR": enr,
-    #     },
-    # )
+    log.info("Devnet ready.")
 
 
 import re

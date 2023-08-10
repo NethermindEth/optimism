@@ -1,13 +1,5 @@
 version: '3.4'
 
-networks:
-  static:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.0.0/16
-  standard:
-
 volumes:
   l1_data:
   l2_data:
@@ -16,32 +8,26 @@ volumes:
 
 services:
   l1:
-    networks:
-      - standard
+    network_mode: host
     build:
       context: .
       dockerfile: Dockerfile.l1
-    ports:
-      - "8545:8545"
-      - "8546:8546"
-      - "7060:6060"
     volumes:
       - "l1_data:/db"
       - "${PWD}/../.devnet/genesis-l1.json:/genesis.json"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+    environment:
+      - "P2P_PORT=30300"
+      - "RPC_PORT=8545"
+      - "AUTH_RPC_PORT=8550"
+      - "WS_PORT=8560"
+      - "METRICS_PORT=6060"
 
   l2:
-    networks:
-      static:
-        ipv4_address: 172.20.0.6
-      standard:
+    network_mode: host
     build:
       context: .
       dockerfile: Dockerfile.l2
-    ports:
-      - "9545:8545"
-      - "9551:8551"
-      - "18060:6060"
     volumes:
       - "l2_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
@@ -50,50 +36,47 @@ services:
       - "/bin/sh"
       - "/entrypoint.sh"
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
-      - "--nat=extip:172.20.0.6"
+      - "--nodekeyhex=b02c978bf3fb3ba2e491d4d8a715c14005160db258e45ef943e161161ace2992"
+    environment:
+      - "P2P_PORT=30301"
+      - "RPC_PORT=8541"
+      - "AUTH_RPC_PORT=8551"
+      - "WS_PORT=8561"
+      - "METRICS_PORT=6061"
 
   op-node:
-    restart: on-failure:5
-    networks:
-      static:
-        ipv4_address: 172.20.0.7
-      standard:
+    network_mode: host
     depends_on:
       - l1
       - l2
     build:
       context: ../
       dockerfile: ./op-node/Dockerfile
-    command: >
-      op-node
-      --l1=ws://l1:8546
-      --l2=http://l2:8551
-      --l2.jwt-secret=/config/test-jwt-secret.txt
-      --sequencer.enabled
-      --sequencer.l1-confs=0
-      --verifier.l1-confs=0
-      --p2p.sequencer.key=8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
-      --rollup.config=/rollup.json
-      --rpc.addr=0.0.0.0
-      --rpc.port=8545
-      --p2p.advertise.ip=172.20.0.7
-      --p2p.listen.ip=0.0.0.0
-      --p2p.listen.tcp=9003
-      --p2p.listen.udp=9003
-      --p2p.scoring.peers=light
-      --snapshotlog.file=/op_log/snapshot.log
-      --p2p.priv.path=/config/p2p-node-key.txt
-      --metrics.enabled
-      --metrics.addr=0.0.0.0
-      --metrics.port=7300
-      --pprof.enabled
-      --rpc.enable-admin
-    ports:
-      - "7545:8545"
-      - "7546:8546"
-      - "9003:9003"
-      - "7300:7300"
-      - "6060:6060"
+    command:
+      - op-node
+      - --l1=ws://127.0.0.1:8560
+      - --l2=http://127.0.0.1:8551
+      - --l2.jwt-secret=/config/test-jwt-secret.txt
+      - --sequencer.enabled
+      - --sequencer.l1-confs=0
+      - --verifier.l1-confs=0
+      - --p2p.sequencer.key=8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
+      - --rollup.config=/rollup.json
+      - --rpc.addr=0.0.0.0
+      - --rpc.port=9541 # 9541 also busy
+      - --p2p.advertise.ip=127.0.0.1
+      - --p2p.listen.ip=0.0.0.0
+      - --p2p.listen.tcp=40401
+      - --p2p.listen.udp=40401
+      - --p2p.scoring.peers=light
+      - --snapshotlog.file=/op_log/snapshot.log
+      - --p2p.priv.path=/config/p2p-node-key.txt
+      - --metrics.enabled
+      - --metrics.addr=0.0.0.0
+      - --metrics.port=7061
+      - --pprof.enabled
+      - --pprof.port=7161
+      - --rpc.enable-admin
     volumes:
       - "${PWD}/p2p-sequencer-key.txt:/config/p2p-sequencer-key.txt"
       - "${PWD}/p2p-node-key.txt:/config/p2p-node-key.txt"
@@ -102,9 +85,7 @@ services:
       - op_log:/op_log
 
   op-batcher:
-    restart: on-failure:5
-    networks:
-      - standard
+    network_mode: host
     depends_on:
       - l1
       - l2
@@ -112,15 +93,11 @@ services:
     build:
       context: ../
       dockerfile: ./op-batcher/Dockerfile
-    ports:
-      - "6061:6060"
-      - "7301:7300"
-      - "6545:8545"
 
     environment:
-      OP_BATCHER_L1_ETH_RPC: http://l1:8545
-      OP_BATCHER_L2_ETH_RPC: http://l2:8545
-      OP_BATCHER_ROLLUP_RPC: http://op-node:8545
+      OP_BATCHER_L1_ETH_RPC: http://127.0.0.1:8545
+      OP_BATCHER_L2_ETH_RPC: http://127.0.0.1:8541
+      OP_BATCHER_ROLLUP_RPC: http://127.0.0.1:9541
       OP_BATCHER_MAX_CHANNEL_DURATION: 1
       OP_BATCHER_SUB_SAFETY_MARGIN: 4 # SWS is 15, ChannelTimeout is 40
       OP_BATCHER_POLL_INTERVAL: 1s
@@ -128,13 +105,14 @@ services:
       OP_BATCHER_MNEMONIC: test test test test test test test test test test test junk
       OP_BATCHER_SEQUENCER_HD_PATH: "m/44'/60'/0'/0/2"
       OP_BATCHER_PPROF_ENABLED: "true"
+      OP_BATCHER_PPROF_PORT: 7162
       OP_BATCHER_METRICS_ENABLED: "true"
+      OP_BATCHER_METRICS_PORT: 7071
       OP_BATCHER_RPC_ENABLE_ADMIN: "true"
+      OP_BATCHER_RPC_PORT: 9641
 
   op-proposer:
-    restart: on-failure:5
-    networks:
-      - standard
+    network_mode: host
     depends_on:
       - l1
       - l2
@@ -142,56 +120,47 @@ services:
     build:
       context: ../
       dockerfile: ./op-proposer/Dockerfile
-    ports:
-      - "6062:6060"
-      - "7302:7300"
     environment:
-      OP_PROPOSER_L1_ETH_RPC: http://l1:8545
-      OP_PROPOSER_ROLLUP_RPC: http://op-node:8545
+      OP_PROPOSER_L1_ETH_RPC: http://127.0.0.1:8545
+      OP_PROPOSER_ROLLUP_RPC: http://127.0.0.1:9541
       OP_PROPOSER_POLL_INTERVAL: 1s
       OP_PROPOSER_NUM_CONFIRMATIONS: 1
       OP_PROPOSER_MNEMONIC: test test test test test test test test test test test junk
       OP_PROPOSER_L2_OUTPUT_HD_PATH: "m/44'/60'/0'/0/1"
       OP_PROPOSER_L2OO_ADDRESS: "${L2OO_ADDRESS}"
       OP_PROPOSER_PPROF_ENABLED: "true"
+      OP_PROPOSER_PPROF_PORT: 7162
       OP_PROPOSER_METRICS_ENABLED: "true"
+      OP_PROPOSER_METRICS_PORT: 7071
       OP_PROPOSER_ALLOW_NON_FINALIZED: "true"
+      OP_PROPOSER_RPC_PORT: 9642
 
 
   stateviz:
-    networks:
-      - standard
+    network_mode: host
     build:
       context: ../
       dockerfile: ./ops-bedrock/Dockerfile.stateviz
     command:
       - stateviz
-      - -addr=0.0.0.0:8080
+      - -addr=0.0.0.0:9090
       - -snapshot=/op_log/snapshot.log
       - -refresh=10s
-    ports:
-      - "9090:8080"
     volumes:
       - op_log:/op_log:ro
 
+
+  # Mev Boost part
   l2-builder:
-    networks:
-      static:
-        ipv4_address: 172.20.0.8
-      standard:
+    network_mode: host
     build:
       context: ../../fb-builder/
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile.l2
+    expose:
+      - 8552
     depends_on:
       - l1
       - l2
       - op-node
-    ports:
-      - "9500:8545"
-      - "9501:8551"
-      - "18061:6060"
     volumes:
       - "l2_builder_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
@@ -204,18 +173,19 @@ services:
       - "--builder.local_relay"
       - "--builder.seconds_in_slot=2"
       - "--builder.submission_offset=1s"
-      - "--builder.beacon_endpoints=http://op-node:8545" # connect to sequencer for this
+      - "--builder.beacon_endpoints=http://127.0.0.1:9541" # connect to sequencer for this
       - "--miner.extradata=IlluminateDmocratizeDstribute"
       - "--miner.algotype=greedy"
+      - "--bootnodes=${ENODE}"
     environment:
-      - "BOOTNODES=${ENODE}"
+      - "P2P_PORT=30302"
+      - "RPC_PORT=8542"
+      - "AUTH_RPC_PORT=8552"
+      - "WS_PORT=8562"
+      - "METRICS_PORT=6062"
 
   op-node-builder:
-    restart: on-failure:5
-    networks:
-      static:
-        ipv4_address: 172.20.0.9
-      standard:
+    network_mode: host
     depends_on:
       - l1
       - l2
@@ -224,20 +194,16 @@ services:
     build:
       context: ../
       dockerfile: ./op-node/Dockerfile
-    command: >
-      op-node
-      --l1=ws://l1:8546
-      --l2=http://l2-builder:8551
-      --l2.jwt-secret=/config/test-jwt-secret.txt
-      --rollup.config=/rollup.json
-      --rpc.addr=0.0.0.0
-      --rpc.port=8500
-      --rpc.enable-admin
-      --p2p.bootnodes=${ENR}
-
-    ports:
-      - "7500:8500"
-      - "7501:8501"
+    command:
+      - op-node
+      - --l1=ws://127.0.0.1:8560
+      - --l2=http://127.0.0.1:8552
+      - --l2.jwt-secret=/config/test-jwt-secret.txt
+      - --rollup.config=/rollup.json
+      - --rpc.addr=0.0.0.0
+      - --rpc.port=9543 # 9544 also busy
+      - --rpc.enable-admin
+      - --p2p.bootnodes=${ENR}
     volumes:
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
       - "${PWD}/../.devnet/rollup.json:/rollup.json"

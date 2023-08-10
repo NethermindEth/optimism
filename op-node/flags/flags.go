@@ -37,7 +37,6 @@ var (
 	MEVBoostAddr = &cli.StringFlag{
 		Name:    "mev.api",
 		Usage:   "Address of MEV-Boost REST API endpoint to fetch external builders blocks from",
-		Value:   "http://127.0.0.1:9062",
 		EnvVars: prefixEnvVars("MEV_BOOST_API"),
 	}
 	RollupConfig = &cli.StringFlag{

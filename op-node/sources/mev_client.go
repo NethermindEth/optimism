@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const PathGetMevPayload = "eth/v1/builder/blinded_blocks"
+const PathGetMevPayload = "eth/v1/builder/get_payload"
 
 type MevClient struct {
 	mevEndpointAddr string
