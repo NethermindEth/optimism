@@ -279,8 +279,9 @@ def devnet_deploy(paths):
     )
     wait_up(8541)
     wait_for_rpc_server("127.0.0.1:8541")
+    enode = get_enode("l2", paths.ops_bedrock_dir)
 
-    log.info("Bringing up everything else. - No plans")
+    log.info("Bringing up everything else.")
     run_command(
         ["docker-compose", "up", "-d", "op-node", "op-proposer", "op-batcher"],
         cwd=paths.ops_bedrock_dir,
@@ -290,48 +291,22 @@ def devnet_deploy(paths):
             "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
         },
     )
+    enr = get_enr("op-node", paths.ops_bedrock_dir)
 
     log.info("Devnet ready.")
 
-    # log.info("Bringing up MevBoost infra.")
-    # run_command(
-    #     [
-    #         "docker-compose",
-    #         "up",
-    #         "-d",
-    #         "mev-relay-redis",
-    #         "mev-relay-db",
-    #         "mev-relay-adminer",
-    #     ],
-    #     cwd=paths.ops_bedrock_dir,
-    #     env={"PWD": paths.ops_bedrock_dir},
-    # )
-    #
-    # wait_up(5432)
-    #
-    # run_command(
-    #     [
-    #         "docker-compose",
-    #         "up",
-    #         "-d",
-    #         "mev-relay-migrations",
-    #         "mev-relay-api",
-    #         "mev-relay-housekeeper",
-    #     ],
-    #     cwd=paths.ops_bedrock_dir,
-    #     env={"PWD": paths.ops_bedrock_dir},
-    # )
+    log.info("Bringing up Builder.")
+    run_command(
+        ["docker-compose", "up", "-d", "l2-builder"],
+        cwd=paths.ops_bedrock_dir,
+        env={"PWD": paths.ops_bedrock_dir, "ENODE": enode},
+    )
+    wait_up(8542)
+    wait_for_rpc_server("127.0.0.1:8542")
 
-    # log.info("Bringing up Builder.")
-    # run_command(
-    #     ["docker-compose", "up", "-d", "builder"],
-    #     cwd=paths.ops_bedrock_dir,
-    #     env={"PWD": paths.ops_bedrock_dir, "ENODE": enode},
-    # )
-    # wait_up(9500)
-    # wait_for_rpc_server("127.0.0.1:9500")
-    #
-    # log.info("Bringing up everything else. - No plans")
+    wait_up(8552)
+
+    # log.info("Bringing up op-node for builder")
     # run_command(
     #     ["docker-compose", "up", "-d", "op-node-builder"],
     #     cwd=paths.ops_bedrock_dir,
@@ -339,9 +314,69 @@ def devnet_deploy(paths):
     #         "PWD": paths.ops_bedrock_dir,
     #         "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
     #         "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
+    #         "ENR": enr,
     #     },
     # )
 
+
+import re
+import subprocess
+
+
+def get_enr(container_id, cwd):
+    def extract_enr_value(log_line):
+        match = re.search(r"enr=(\S+)", log_line)
+        if match:
+            return match.group(1)
+        return None
+
+    for _ in range(10):
+        try:
+            logs = subprocess.check_output(
+                f"docker-compose logs {container_id} | grep enr",
+                stderr=subprocess.STDOUT,
+                shell=True,
+                text=True,
+                cwd=cwd,
+            )
+            for line in logs.splitlines():
+                enr_value = extract_enr_value(line)
+                if enr_value:
+                    print(f"Found enr value: {enr_value}")
+                    return enr_value
+        except Exception as e:
+            print(f"Couldn't get enr, retrying: {e}")
+            time.sleep(1)
+
+    raise Exception("Timing out while waiting for enr")
+
+
+def get_enode(container_id, cwd):
+    def extract_enode_value(log_line):
+        match = re.search(r"self=(\S+)", log_line)
+        if match:
+            return match.group(1)
+        return None
+
+    for _ in range(10):
+        try:
+            logs = subprocess.check_output(
+                f"docker-compose logs {container_id} | grep enode",
+                stderr=subprocess.STDOUT,
+                shell=True,
+                text=True,
+                cwd=cwd,
+            )
+            for line in logs.splitlines():
+                enode_value = extract_enode_value(line)
+                if enode_value:
+                    print(f"Found enode value: {enode_value}")
+                    return enode_value
+        except Exception as e:
+            print(f"Couldn't get enode, retrying: {e}")
+            time.sleep(1)
+
+    raise Exception("Timing out while waiting for enode")
 
 
 def wait_for_rpc_server(url):

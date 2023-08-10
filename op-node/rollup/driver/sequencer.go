@@ -96,19 +96,14 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 		txs[i].UnmarshalBinary(tx)
 	}
 
-	attrsEvent := &eth.BuilderPayloadAttributesEvent{
-		Version: "",
-		Data: eth.BuilderPayloadAttributesEventData{
-			ProposalSlot:    l2Head.Number + 1,
-			ParentBlockHash: l2Head.Hash,
-			PayloadAttributes: eth.BuilderPayloadAttributes{
-				Timestamp:             uint64(attrs.Timestamp),
-				PrevRandao:            common.Hash(attrs.PrevRandao),
-				SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
-				GasLimit:              uint64(*attrs.GasLimit),
-				Transactions:          txs,
-			},
-		},
+	attrsEvent := &eth.BuilderPayloadAttributes{
+		Timestamp:             attrs.Timestamp,
+		Random:                common.Hash(attrs.PrevRandao),
+		SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+		Slot:                  l2Head.Number,
+		HeadHash:              l2Head.Hash,
+		Transactions:          txs,
+		GasLimit:              uint64(*attrs.GasLimit),
 	}
 
 	attrsData, err := json.Marshal(attrsEvent)
