@@ -34,7 +34,7 @@ func NewMevClient(log log.Logger, mevEndpointAddr string) (*MevClient, error) {
 }
 
 func (mc *MevClient) GetMevPayload(ctx context.Context, parent common.Hash) (*eth.ExecutionPayload, error) {
-	responsePayload := new(fbSignedBlindedBeaconBlock)
+	responsePayload := new(VersionedExecutionPayload)
 	url := fmt.Sprintf("%s/%s/%s", mc.mevEndpointAddr, PathGetMevPayload, parent.Hex())
 	httpClient := http.Client{Timeout: 10 * time.Second}
 
@@ -51,7 +51,7 @@ func (mc *MevClient) GetMevPayload(ctx context.Context, parent common.Hash) (*et
 		return nil, err
 	}
 
-	return responsePayload.Capella.Message.Body.ExecutionPayloadHeader, nil
+	return responsePayload.Bellatrix.Message.Body.ExecutionPayloadHeader, nil
 }
 
 var (
@@ -153,25 +153,4 @@ func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method,
 		}
 		return code, nil
 	}
-}
-
-// We need this types - but think we need to import them right now
-// common "github.com/flashbots/mev-boost-relay/common"
-// capella "github.com/attestantio/go-eth2-client/api/v1/capella"
-// capella2 "github.com/attestantio/go-eth2-client/spec/capella"
-
-type capellaBlindedBeaconBlockBody struct {
-	ExecutionPayloadHeader *eth.ExecutionPayload
-}
-
-type capellaBlindedBeaconBlock struct {
-	Body *capellaBlindedBeaconBlockBody
-}
-
-type capellaSignedBlindedBeaconBlock struct {
-	Message *capellaBlindedBeaconBlock
-}
-
-type fbSignedBlindedBeaconBlock struct {
-	Capella *capellaSignedBlindedBeaconBlock
 }
