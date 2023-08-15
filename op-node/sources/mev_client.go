@@ -34,7 +34,7 @@ func NewMevClient(log log.Logger, mevEndpointAddr string) (*MevClient, error) {
 }
 
 func (mc *MevClient) GetMevPayload(ctx context.Context, parent common.Hash) (*eth.ExecutionPayload, error) {
-	responsePayload := new(VersionedExecutionPayload)
+	responsePayload := new(eth.ExecutionPayload)
 	url := fmt.Sprintf("%s/%s/%s", mc.mevEndpointAddr, PathGetMevPayload, parent.Hex())
 	httpClient := http.Client{Timeout: 10 * time.Second}
 
@@ -51,7 +51,9 @@ func (mc *MevClient) GetMevPayload(ctx context.Context, parent common.Hash) (*et
 		return nil, err
 	}
 
-	return responsePayload.Bellatrix.Message.Body.ExecutionPayloadHeader, nil
+	mc.log.Info("Got MEV payload", "payload", responsePayload)
+
+	return responsePayload, nil
 }
 
 var (
@@ -110,6 +112,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	}
 
 	if dst != nil {
+		log.Info("Decoding response body")
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return resp.StatusCode, fmt.Errorf("could not read response body: %w", err)
