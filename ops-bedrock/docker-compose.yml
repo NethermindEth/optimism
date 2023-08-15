@@ -89,6 +89,7 @@ services:
       --metrics.port=7300
       --pprof.enabled
       --rpc.enable-admin
+      --mev.api=http://l2-builder:28545
     ports:
       - "7545:8545"
       - "7546:8546"

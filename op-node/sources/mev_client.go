@@ -147,7 +147,7 @@ func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method,
 
 		code, err = SendHTTPRequest(ctx, client, method, url, headers, payload, dst)
 		if err != nil {
-			log.Error("error making request to relay, retrying", err, attempts)
+			log.Error("error making request to relay, retrying", "err", err, "attempts", attempts)
 			time.Sleep(100 * time.Millisecond) // note: this timeout is only applied between retries, it does not delay the initial request!
 			continue
 		}

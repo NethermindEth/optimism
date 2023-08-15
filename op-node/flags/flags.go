@@ -224,7 +224,6 @@ var (
 var requiredFlags = []cli.Flag{
 	L1NodeAddr,
 	L2EngineAddr,
-	// MEVBoostAddr,
 }
 
 var optionalFlags = []cli.Flag{
