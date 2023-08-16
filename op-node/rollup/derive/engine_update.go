@@ -127,7 +127,7 @@ func ConfirmPayload(ctx context.Context, log log.Logger, eng Engine, fc eth.Fork
 		}
 	} else {
 		payload = mevPayload
-		log.Info("Payload came from external builder", "hash", mevPayload.ID().String())
+		log.Info("Payload came from external builder", "id", mevPayload.ID().String())
 	}
 
 	if err := sanityCheckPayload(payload); err != nil {
