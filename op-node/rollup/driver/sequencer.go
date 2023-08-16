@@ -2,7 +2,7 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
+	// "encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -90,29 +90,29 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 		return err
 	}
 
-	txs := make(types.Transactions, len(attrs.Transactions))
-	for i, tx := range attrs.Transactions {
-		txs[i] = new(types.Transaction)
-		txs[i].UnmarshalBinary(tx)
-	}
-
-	attrsEvent := &eth.BuilderPayloadAttributes{
-		Timestamp:             attrs.Timestamp,
-		Random:                common.Hash(attrs.PrevRandao),
-		SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
-		Slot:                  l2Head.Number,
-		HeadHash:              l2Head.Hash,
-		Transactions:          txs,
-		GasLimit:              uint64(*attrs.GasLimit),
-	}
-
-	attrsData, err := json.Marshal(attrsEvent)
-	if err != nil {
-		d.log.Error("failed to marshal payload attributes", "err", err)
-	}
-
-	d.log.Info("broadcasting new payload attributes", "json", string(attrsData))
-	d.broadcastPayloadAttrs("payload_attributes", attrsData)
+	// txs := make(types.Transactions, len(attrs.Transactions))
+	// for i, tx := range attrs.Transactions {
+	// 	txs[i] = new(types.Transaction)
+	// 	txs[i].UnmarshalBinary(tx)
+	// }
+	//
+	// attrsEvent := &eth.BuilderPayloadAttributes{
+	// 	Timestamp:             attrs.Timestamp,
+	// 	Random:                common.Hash(attrs.PrevRandao),
+	// 	SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+	// 	Slot:                  l2Head.Number,
+	// 	HeadHash:              l2Head.Hash,
+	// 	Transactions:          txs,
+	// 	GasLimit:              uint64(*attrs.GasLimit),
+	// }
+	//
+	// attrsData, err := json.Marshal(attrsEvent)
+	// if err != nil {
+	// 	d.log.Error("failed to marshal payload attributes", "err", err)
+	// }
+	//
+	// d.log.Info("broadcasting new payload attributes", "json", string(attrsData))
+	// d.broadcastPayloadAttrs("payload_attributes", attrsData)
 
 	// If our next L2 block timestamp is beyond the Sequencer drift threshold, then we must produce
 	// empty blocks (other than the L1 info deposit and any user deposits). We handle this by
