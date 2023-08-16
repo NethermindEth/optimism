@@ -32,6 +32,8 @@ func NewAttributesSequencer(log log.Logger, l1OriginSelector L1OriginSelectorIfa
 
 		l1OriginSelector: l1OriginSelector,
 		attrBuilder:      attrBuilder,
+
+		broadcastPayloadAttrs: broadcastPayloadAttrs,
 	}
 }
 
@@ -80,7 +82,7 @@ func (as *AttributesSequencer) PreparePayloadAttributes(ctx context.Context, l2H
 		return nil, err
 	}
 
-	as.log.Info("broadcasting new payload attributes", "json", attrsData)
+	as.log.Info("broadcasting new payload attributes", "json", string(attrsData))
 	as.broadcastPayloadAttrs("payload_attributes", attrsData)
 	return attrs, nil
 }
