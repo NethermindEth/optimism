@@ -11,7 +11,8 @@ networks:
 volumes:
   l1_data:
   l2_data:
-  l2_builder_data:
+  l2_builder_1_data:
+  l2_builder_2_data:
   op_log:
 
 services:
@@ -89,7 +90,7 @@ services:
       --metrics.port=7300
       --pprof.enabled
       --rpc.enable-admin
-      --mev.api=http://l2-builder:28545
+      --mev.api=http://mev-boost:18550
     ports:
       - "7545:8545"
       - "7546:8546"
@@ -176,7 +177,7 @@ services:
     volumes:
       - op_log:/op_log:ro
 
-  l2-builder:
+  l2-builder-1:
     networks:
       static:
         ipv4_address: 172.20.0.8
@@ -195,7 +196,7 @@ services:
       - "9501:8551"
       - "18061:6060"
     volumes:
-      - "l2_builder_data:/db"
+      - "l2_builder_1_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
     entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
@@ -207,12 +208,12 @@ services:
       - "--builder.local_relay"
       - "--builder.seconds_in_slot=2"
       - "--builder.submission_offset=1s"
-      - "--builder.beacon_endpoints=http://op-node-builder:8501"
+      - "--builder.beacon_endpoints=http://op-node-builder-1:8501"
       - "--miner.extradata=IlluminateDmocratizeDstribute"
       - "--miner.algotype=greedy"
       - "--bootnodes=enode://95f711311375a92cbc3c16f4f1e9147f69fe45ff73c3ce71202d3e78628bd545fb2441c539165c48361e1cbbb0d06d19e46e80ecee8729d2810932092dc0143d@172.20.0.6:30303"
 
-  op-node-builder:
+  op-node-builder-1:
     restart: on-failure:5
     networks:
       static:
@@ -222,19 +223,20 @@ services:
       - l1
       - l2
       - op-node
-      - l2-builder
+      - l2-builder-1
     build:
       context: ../
       dockerfile: ./op-node/Dockerfile
     command: >
       op-node
       --l1=ws://l1:8546
-      --l2=http://l2-builder:8551
+      --l2=http://l2-builder-1:8551
       --l2.jwt-secret=/config/test-jwt-secret.txt
       --rollup.config=/rollup.json
       --rpc.addr=0.0.0.0
       --rpc.port=8500
       --rpc.enable-admin
+      --p2p.advertise.ip=172.20.0.9
       --p2p.bootnodes=${ENR}
 
     ports:
@@ -244,3 +246,88 @@ services:
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
       - "${PWD}/../.devnet/rollup.json:/rollup.json"
       - op_log:/op_log
+
+  l2-builder-2:
+    networks:
+      static:
+        ipv4_address: 172.20.0.10
+      standard:
+    build: # with this the EL is not able to sync
+      context: ../../fb-builder/
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.l2
+    depends_on:
+      - l1
+      - l2
+      - op-node
+    ports:
+      - "9600:8545"
+    volumes:
+      - "l2_builder_2_data:/db"
+      - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+    entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
+      - "/bin/sh"
+      - "/entrypoint.sh"
+      - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
+      - "--nat=extip:172.20.0.10"
+      - "--builder"
+      - "--builder.local_relay"
+      - "--builder.seconds_in_slot=2"
+      - "--builder.submission_offset=1s"
+      - "--builder.beacon_endpoints=http://op-node-builder-2:8501"
+      - "--miner.extradata=IlluminateDmocratizeDstribute"
+      - "--miner.algotype=greedy"
+      - "--bootnodes=enode://95f711311375a92cbc3c16f4f1e9147f69fe45ff73c3ce71202d3e78628bd545fb2441c539165c48361e1cbbb0d06d19e46e80ecee8729d2810932092dc0143d@172.20.0.6:30303"
+
+  op-node-builder-2:
+    restart: on-failure:5
+    networks:
+      static:
+        ipv4_address: 172.20.0.11
+      standard:
+    depends_on:
+      - l1
+      - l2
+      - op-node
+      - l2-builder-2
+    build:
+      context: ../
+      dockerfile: ./op-node/Dockerfile
+    command: >
+      op-node
+      --l1=ws://l1:8546
+      --l2=http://l2-builder-2:8551
+      --l2.jwt-secret=/config/test-jwt-secret.txt
+      --rollup.config=/rollup.json
+      --rpc.addr=0.0.0.0
+      --rpc.port=8500
+      --rpc.enable-admin
+      --p2p.advertise.ip=172.20.0.11
+      --p2p.bootnodes=${ENR}
+
+    ports:
+      - "7600:8500"
+    volumes:
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+      - "${PWD}/../.devnet/rollup.json:/rollup.json"
+      - op_log:/op_log
+
+  mev-boost:
+    restart: on-failure:5
+    networks:
+      - standard
+    depends_on:
+      - l2-builder-1
+      - l2-builder-2
+    build:
+      context: ../../mev-boost/
+    command:
+      - -addr=0.0.0.0:18550
+      - -relay=http://l2-builder-1:28545
+      - -relay=http://l2-builder-2:28545
+      - -request-timeout-getpayload=2000
+
+
+

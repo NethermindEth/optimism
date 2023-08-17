@@ -38,7 +38,7 @@ func (mc *MevClient) GetMevPayload(ctx context.Context, parent common.Hash) (*et
 	url := fmt.Sprintf("%s/%s/%s", mc.mevEndpointAddr, PathGetMevPayload, parent.Hex())
 	httpClient := http.Client{Timeout: 10 * time.Second}
 
-	if _, err := SendHTTPRequestWithRetries(
+	if code, err := SendHTTPRequestWithRetries(
 		ctx,
 		httpClient,
 		"GET",
@@ -49,10 +49,12 @@ func (mc *MevClient) GetMevPayload(ctx context.Context, parent common.Hash) (*et
 		5,
 		mc.log); err != nil {
 		return nil, err
+	} else if code == http.StatusNoContent {
+		mc.log.Info("Could not get MEV payload", "parent", parent.Hex())
+		return nil, errors.New("could not get MEV payload")
 	}
 
 	mc.log.Info("Got MEV payload", "payload", responsePayload)
-
 	return responsePayload, nil
 }
 

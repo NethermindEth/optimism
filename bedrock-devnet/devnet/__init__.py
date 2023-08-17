@@ -293,9 +293,9 @@ def devnet_deploy(paths):
     )
     enr = get_enr("op-node", paths.ops_bedrock_dir)
 
-    log.info(f"Bringing up Builder. Bootnode={enode}")
+    log.info(f"Bringing up Builder1. Bootnode={enode}")
     run_command(
-        ["docker-compose", "up", "-d", "l2-builder"],
+        ["docker-compose", "up", "-d", "l2-builder-1"],
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir, "ENODE": enode},
     )
@@ -304,7 +304,7 @@ def devnet_deploy(paths):
 
     log.info(f"Bringing up op-node for builder. Bootnode={enr}")
     run_command(
-        ["docker-compose", "up", "-d", "op-node-builder"],
+        ["docker-compose", "up", "-d", "op-node-builder-1"],
         cwd=paths.ops_bedrock_dir,
         env={
             "PWD": paths.ops_bedrock_dir,
@@ -312,6 +312,34 @@ def devnet_deploy(paths):
             "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
             "ENR": enr,
         },
+    )
+
+    log.info(f"Bringing up Builder2. Bootnode={enode}")
+    run_command(
+        ["docker-compose", "up", "-d", "l2-builder-2"],
+        cwd=paths.ops_bedrock_dir,
+        env={"PWD": paths.ops_bedrock_dir, "ENODE": enode},
+    )
+    wait_up(9600)
+    wait_for_rpc_server("127.0.0.1:9600")
+
+    log.info(f"Bringing up op-node for builder. Bootnode={enr}")
+    run_command(
+        ["docker-compose", "up", "-d", "op-node-builder-2"],
+        cwd=paths.ops_bedrock_dir,
+        env={
+            "PWD": paths.ops_bedrock_dir,
+            "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
+            "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
+            "ENR": enr,
+        },
+    )
+
+    log.info(f"Bringing up MevBoost.")
+    run_command(
+        ["docker-compose", "up", "-d", "mev-boost"],
+        cwd=paths.ops_bedrock_dir,
+        env={"PWD": paths.ops_bedrock_dir},
     )
 
     log.info("Devnet ready.")
