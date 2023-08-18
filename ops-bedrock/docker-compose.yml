@@ -182,7 +182,7 @@ services:
       static:
         ipv4_address: 172.20.0.8
       standard:
-    build: # with this the EL is not able to sync
+    build:
       context: ../../fb-builder/
     # build:
     #   context: .
