@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 )
@@ -249,6 +250,7 @@ batchLoop:
 				EpochNum:     rollup.Epoch(epoch.Number),
 				EpochHash:    epoch.Hash,
 				Timestamp:    nextTimestamp,
+				FeeRecipient: predeploys.SequencerFeeVaultAddr,
 				Transactions: nil,
 			},
 		}, nil

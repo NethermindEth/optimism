@@ -34,6 +34,11 @@ var (
 		Usage:   "Address of L2 Engine JSON-RPC endpoints to use (engine and eth namespace required)",
 		EnvVars: prefixEnvVars("L2_ENGINE_RPC"),
 	}
+	MEVBoostAddr = &cli.StringFlag{
+		Name:    "mev.api",
+		Usage:   "Address of MEV-Boost REST API endpoint to fetch external builders blocks from",
+		EnvVars: prefixEnvVars("MEV_BOOST_API"),
+	}
 	RollupConfig = &cli.StringFlag{
 		Name:    "rollup.config",
 		Usage:   "Rollup chain parameters",
@@ -222,6 +227,7 @@ var requiredFlags = []cli.Flag{
 }
 
 var optionalFlags = []cli.Flag{
+	MEVBoostAddr,
 	RPCListenAddr,
 	RPCListenPort,
 	RollupConfig,

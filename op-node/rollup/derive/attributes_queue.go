@@ -24,6 +24,7 @@ import (
 // This stage does not need to retain any references to L1 blocks.
 
 type AttributesBuilder interface {
+	// TODO: This is the one
 	PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID) (attrs *eth.PayloadAttributes, err error)
 }
 

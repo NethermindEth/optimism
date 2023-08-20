@@ -4,10 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/r3labs/sse"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/event"
@@ -33,12 +37,15 @@ type OpNode struct {
 	l1Source  *sources.L1Client     // L1 Client to fetch data from
 	l2Driver  *driver.Driver        // L2 Engine to Sync
 	l2Source  *sources.EngineClient // L2 Execution Engine RPC bindings
+	mevSource *sources.MevClient    // MEV source for external builders' blocks
 	rpcSync   *sources.SyncClient   // Alt-sync RPC client, optional (may be nil)
 	server    *rpcServer            // RPC server hosting the rollup-node API
 	p2pNode   *p2p.NodeP2P          // P2P node functionality
 	p2pSigner p2p.Signer            // p2p gogssip application messages will be signed with this signer
 	tracer    Tracer                // tracer to get events for testing/debugging
 	runCfg    *RuntimeConfig        // runtime configurables
+
+	httpEventStreamServer *sse.Server
 
 	// some resources cannot be stopped directly, like the p2p gossipsub router (not our design),
 	// and depend on this ctx to be closed.
@@ -76,31 +83,49 @@ func New(ctx context.Context, cfg *Config, log log.Logger, snapshotLog log.Logge
 
 func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) error {
 	if err := n.initTracer(ctx, cfg); err != nil {
+		n.log.Error("Error initializing tracer", "err", err)
 		return err
 	}
 	if err := n.initL1(ctx, cfg); err != nil {
+		n.log.Error("Error initializing L1", "err", err)
 		return err
 	}
 	if err := n.initRuntimeConfig(ctx, cfg); err != nil {
+		n.log.Error("Error initializing runtime config", "err", err)
 		return err
 	}
+	if err := n.initMev(ctx, cfg); err != nil {
+		n.log.Error("Error initializing MEV", "err", err)
+		_ = err
+		// return err
+	}
 	if err := n.initL2(ctx, cfg, snapshotLog); err != nil {
+		n.log.Error("Error initializing L2", "err", err)
 		return err
 	}
 	if err := n.initRPCSync(ctx, cfg); err != nil {
+		n.log.Error("Error initializing RPC sync", "err", err)
 		return err
 	}
 	if err := n.initP2PSigner(ctx, cfg); err != nil {
+		n.log.Error("Error initializing P2P signer")
 		return err
 	}
 	if err := n.initP2P(ctx, cfg); err != nil {
+		n.log.Error("Error initializing P2P", "err", err)
 		return err
 	}
 	// Only expose the server at the end, ensuring all RPC backend components are initialized.
 	if err := n.initRPCServer(ctx, cfg); err != nil {
+		n.log.Error("Error initializing RPC server", "err", err)
+		return err
+	}
+	if err := n.initHttpEventStreamServer(ctx, cfg); err != nil {
+		n.log.Error("Error initializing HTTP event stream server", "err", err)
 		return err
 	}
 	if err := n.initMetricsServer(ctx, cfg); err != nil {
+		n.log.Error("Error initializing metrics server", "err", err)
 		return err
 	}
 	return nil
@@ -195,12 +220,28 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 		return fmt.Errorf("failed to create Engine client: %w", err)
 	}
 
+	n.l2Source.MevClient = n.mevSource
+
 	if err := cfg.Rollup.ValidateL2Config(ctx, n.l2Source); err != nil {
 		return err
 	}
 
-	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence)
+	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, func(id string, data []byte) {
+		n.httpEventStreamServer.Publish(id, &sse.Event{
+			Data: data,
+		})
+	})
 
+	return nil
+}
+
+func (n *OpNode) initMev(ctx context.Context, cfg *Config) error {
+	mevSource, err := cfg.Mev.Setup(ctx, n.log)
+	if err != nil {
+		return fmt.Errorf("failed to setup MEV client: %w", err)
+	}
+
+	n.mevSource = mevSource
 	return nil
 }
 
@@ -237,6 +278,25 @@ func (n *OpNode) initRPCServer(ctx context.Context, cfg *Config) error {
 		return fmt.Errorf("unable to start RPC server: %w", err)
 	}
 	n.server = server
+	return nil
+}
+
+func (n *OpNode) initHttpEventStreamServer(ctx context.Context, cfg *Config) error {
+	server := sse.New()
+	server.CreateStream("payload_attributes")
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/events", server.HTTPHandler)
+
+	n.httpEventStreamServer = server
+
+	go func() {
+		addr := net.JoinHostPort(cfg.RPC.ListenAddr, strconv.Itoa(cfg.RPC.ListenPort+1))
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			log.Crit("error starting http stream server", "err", err)
+		}
+	}()
+
 	return nil
 }
 

@@ -1,0 +1,210 @@
+version: '3.4'
+
+volumes:
+  l1_data:
+  l2_data:
+  l2_builder_data:
+  op_log:
+
+services:
+  l1:
+    network_mode: host
+    build:
+      context: .
+      dockerfile: Dockerfile.l1
+    volumes:
+      - "l1_data:/db"
+      - "${PWD}/../.devnet/genesis-l1.json:/genesis.json"
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+    environment:
+      - "P2P_PORT=30300"
+      - "RPC_PORT=8545"
+      - "AUTH_RPC_PORT=8550"
+      - "WS_PORT=8560"
+      - "METRICS_PORT=6060"
+
+  l2:
+    network_mode: host
+    build:
+      context: .
+      dockerfile: Dockerfile.l2
+    volumes:
+      - "l2_data:/db"
+      - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+    entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
+      - "/bin/sh"
+      - "/entrypoint.sh"
+      - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
+      - "--nodekeyhex=b02c978bf3fb3ba2e491d4d8a715c14005160db258e45ef943e161161ace2992"
+    environment:
+      - "P2P_PORT=30301"
+      - "RPC_PORT=8541"
+      - "AUTH_RPC_PORT=8551"
+      - "WS_PORT=8561"
+      - "METRICS_PORT=6061"
+
+  op-node:
+    network_mode: host
+    depends_on:
+      - l1
+      - l2
+    build:
+      context: ../
+      dockerfile: ./op-node/Dockerfile
+    command:
+      - op-node
+      - --l1=ws://127.0.0.1:8560
+      - --l2=http://127.0.0.1:8551
+      - --l2.jwt-secret=/config/test-jwt-secret.txt
+      - --sequencer.enabled
+      - --sequencer.l1-confs=0
+      - --verifier.l1-confs=0
+      - --p2p.sequencer.key=8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
+      - --rollup.config=/rollup.json
+      - --rpc.addr=0.0.0.0
+      - --rpc.port=9541 # 9541 also busy
+      - --p2p.advertise.ip=127.0.0.1
+      - --p2p.listen.ip=0.0.0.0
+      - --p2p.listen.tcp=40401
+      - --p2p.listen.udp=40401
+      - --p2p.scoring.peers=light
+      - --snapshotlog.file=/op_log/snapshot.log
+      - --p2p.priv.path=/config/p2p-node-key.txt
+      - --metrics.enabled
+      - --metrics.addr=0.0.0.0
+      - --metrics.port=7061
+      - --pprof.enabled
+      - --pprof.port=7161
+      - --rpc.enable-admin
+    volumes:
+      - "${PWD}/p2p-sequencer-key.txt:/config/p2p-sequencer-key.txt"
+      - "${PWD}/p2p-node-key.txt:/config/p2p-node-key.txt"
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+      - "${PWD}/../.devnet/rollup.json:/rollup.json"
+      - op_log:/op_log
+
+  op-batcher:
+    network_mode: host
+    depends_on:
+      - l1
+      - l2
+      - op-node
+    build:
+      context: ../
+      dockerfile: ./op-batcher/Dockerfile
+
+    environment:
+      OP_BATCHER_L1_ETH_RPC: http://127.0.0.1:8545
+      OP_BATCHER_L2_ETH_RPC: http://127.0.0.1:8541
+      OP_BATCHER_ROLLUP_RPC: http://127.0.0.1:9541
+      OP_BATCHER_MAX_CHANNEL_DURATION: 1
+      OP_BATCHER_SUB_SAFETY_MARGIN: 4 # SWS is 15, ChannelTimeout is 40
+      OP_BATCHER_POLL_INTERVAL: 1s
+      OP_BATCHER_NUM_CONFIRMATIONS: 1
+      OP_BATCHER_MNEMONIC: test test test test test test test test test test test junk
+      OP_BATCHER_SEQUENCER_HD_PATH: "m/44'/60'/0'/0/2"
+      OP_BATCHER_PPROF_ENABLED: "true"
+      OP_BATCHER_PPROF_PORT: 7162
+      OP_BATCHER_METRICS_ENABLED: "true"
+      OP_BATCHER_METRICS_PORT: 7071
+      OP_BATCHER_RPC_ENABLE_ADMIN: "true"
+      OP_BATCHER_RPC_PORT: 9641
+
+  op-proposer:
+    network_mode: host
+    depends_on:
+      - l1
+      - l2
+      - op-node
+    build:
+      context: ../
+      dockerfile: ./op-proposer/Dockerfile
+    environment:
+      OP_PROPOSER_L1_ETH_RPC: http://127.0.0.1:8545
+      OP_PROPOSER_ROLLUP_RPC: http://127.0.0.1:9541
+      OP_PROPOSER_POLL_INTERVAL: 1s
+      OP_PROPOSER_NUM_CONFIRMATIONS: 1
+      OP_PROPOSER_MNEMONIC: test test test test test test test test test test test junk
+      OP_PROPOSER_L2_OUTPUT_HD_PATH: "m/44'/60'/0'/0/1"
+      OP_PROPOSER_L2OO_ADDRESS: "${L2OO_ADDRESS}"
+      OP_PROPOSER_PPROF_ENABLED: "true"
+      OP_PROPOSER_PPROF_PORT: 7162
+      OP_PROPOSER_METRICS_ENABLED: "true"
+      OP_PROPOSER_METRICS_PORT: 7071
+      OP_PROPOSER_ALLOW_NON_FINALIZED: "true"
+      OP_PROPOSER_RPC_PORT: 9642
+
+
+  stateviz:
+    network_mode: host
+    build:
+      context: ../
+      dockerfile: ./ops-bedrock/Dockerfile.stateviz
+    command:
+      - stateviz
+      - -addr=0.0.0.0:9090
+      - -snapshot=/op_log/snapshot.log
+      - -refresh=10s
+    volumes:
+      - op_log:/op_log:ro
+
+
+  # Mev Boost part
+  l2-builder:
+    network_mode: host
+    build:
+      context: ../../fb-builder/
+    expose:
+      - 8552
+    depends_on:
+      - l1
+      - l2
+      - op-node
+    volumes:
+      - "l2_builder_data:/db"
+      - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+    entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
+      - "/bin/sh"
+      - "/entrypoint.sh"
+      - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
+      - "--builder"
+      - "--builder.local_relay"
+      - "--builder.seconds_in_slot=2"
+      - "--builder.submission_offset=1s"
+      - "--builder.beacon_endpoints=http://127.0.0.1:9541" # connect to sequencer for this
+      - "--miner.extradata=IlluminateDmocratizeDstribute"
+      - "--miner.algotype=greedy"
+      - "--bootnodes=${ENODE}"
+    environment:
+      - "P2P_PORT=30302"
+      - "RPC_PORT=8542"
+      - "AUTH_RPC_PORT=8552"
+      - "WS_PORT=8562"
+      - "METRICS_PORT=6062"
+
+  op-node-builder:
+    network_mode: host
+    depends_on:
+      - l1
+      - l2
+      - op-node
+      - l2-builder
+    build:
+      context: ../
+      dockerfile: ./op-node/Dockerfile
+    command:
+      - op-node
+      - --l1=ws://127.0.0.1:8560
+      - --l2=http://127.0.0.1:8552
+      - --l2.jwt-secret=/config/test-jwt-secret.txt
+      - --rollup.config=/rollup.json
+      - --rpc.addr=0.0.0.0
+      - --rpc.port=9543 # 9544 also busy
+      - --rpc.enable-admin
+      - --p2p.bootnodes=${ENR}
+    volumes:
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+      - "${PWD}/../.devnet/rollup.json:/rollup.json"
+      - op_log:/op_log

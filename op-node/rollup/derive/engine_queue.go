@@ -36,6 +36,13 @@ type Engine interface {
 	L2BlockRefByLabel(ctx context.Context, label eth.BlockLabel) (eth.L2BlockRef, error)
 	L2BlockRefByHash(ctx context.Context, l2Hash common.Hash) (eth.L2BlockRef, error)
 	SystemConfigL2Fetcher
+
+	// HACK: to quicker get access to MevEngine, otherwise it need to be pushed the same way as engine is.
+	GetMevPayload(ctx context.Context, parent common.Hash) (*eth.ExecutionPayload, error)
+}
+
+type MevEngine interface {
+	GetMevPayload(context.Context, common.Hash) (*eth.ExecutionPayload, error)
 }
 
 // EngineState provides a read-only interface of the forkchoice state properties of the L2 Engine.
@@ -102,9 +109,10 @@ type EngineQueue struct {
 	safeHead   eth.L2BlockRef
 	unsafeHead eth.L2BlockRef
 
-	buildingOnto eth.L2BlockRef
-	buildingID   eth.PayloadID
-	buildingSafe bool
+	buildingOnto     eth.L2BlockRef
+	buildingID       eth.PayloadID
+	buildingSafe     bool
+	buildingNoTxPool bool
 
 	// Track when the rollup node changes the forkchoice without engine action,
 	// e.g. on a reset after a reorg, or after consolidating a block.
@@ -125,20 +133,23 @@ type EngineQueue struct {
 	// Tracks which L2 blocks where last derived from which L1 block. At most finalityLookback large.
 	finalityData []FinalityData
 
-	engine Engine
-	prev   NextAttributesProvider
+	engine   Engine
+	mevBoost MevEngine
+	prev     NextAttributesProvider
 
 	origin eth.L1BlockRef   // updated on resets, and whenever we read from the previous stage.
 	sysCfg eth.SystemConfig // only used for pipeline resets
 
 	metrics   Metrics
 	l1Fetcher L1Fetcher
+
+	attrsSequencer *AttributesSequencer
 }
 
 var _ EngineControl = (*EngineQueue)(nil)
 
 // NewEngineQueue creates a new EngineQueue, which should be Reset(origin) before use.
-func NewEngineQueue(log log.Logger, cfg *rollup.Config, engine Engine, metrics Metrics, prev NextAttributesProvider, l1Fetcher L1Fetcher) *EngineQueue {
+func NewEngineQueue(log log.Logger, cfg *rollup.Config, engine Engine, metrics Metrics, prev NextAttributesProvider, l1Fetcher L1Fetcher, attrsSequencer *AttributesSequencer) *EngineQueue {
 	return &EngineQueue{
 		log:            log,
 		cfg:            cfg,
@@ -148,6 +159,8 @@ func NewEngineQueue(log log.Logger, cfg *rollup.Config, engine Engine, metrics M
 		unsafePayloads: NewPayloadsQueue(maxUnsafePayloadsMemory, payloadMemSize),
 		prev:           prev,
 		l1Fetcher:      l1Fetcher,
+
+		attrsSequencer: attrsSequencer,
 	}
 }
 
@@ -170,6 +183,7 @@ func (eq *EngineQueue) AddUnsafePayload(payload *eth.ExecutionPayload) {
 		eq.log.Warn("cannot add nil unsafe payload")
 		return
 	}
+	// TODO adding
 	if err := eq.unsafePayloads.Push(payload); err != nil {
 		eq.log.Warn("Could not add unsafe payload", "id", payload.ID(), "timestamp", uint64(payload.Timestamp), "err", err)
 		return
@@ -430,7 +444,7 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 	// TODO: once we support snap-sync we can remove this condition, and handle the "SYNCING" status of the execution engine.
 	if first.ParentHash != eq.unsafeHead.Hash {
 		if uint64(first.BlockNumber) == eq.unsafeHead.Number+1 {
-			eq.log.Info("skipping unsafe payload, since it does not build onto the existing unsafe chain", "safe", eq.safeHead.ID(), "unsafe", first.ID(), "payload", first.ID())
+			eq.log.Info("skipping unsafe payload, since it does not build onto the existing unsafe chain", "safe", eq.safeHead.ID(), "unsafe", eq.unsafeHead.ID(), "payload", first.ID(), "buildingOnto", first.ParentID())
 			eq.unsafePayloads.Pop()
 		}
 		return io.EOF // time to go to next stage if we cannot process the first unsafe payload
@@ -485,7 +499,10 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 	eq.log.Trace("Executed unsafe payload", "hash", ref.Hash, "number", ref.Number, "timestamp", ref.Time, "l1Origin", ref.L1Origin)
 	eq.logSyncProgress("unsafe payload from sequencer")
 
-	return nil
+	// no use for attrs here, boadcasting inside of PreparePayloadAttributes is enough
+	_, err = eq.attrsSequencer.PreparePayloadAttributes(ctx, eq.unsafeHead)
+
+	return err
 }
 
 func (eq *EngineQueue) tryNextSafeAttributes(ctx context.Context) error {
@@ -624,6 +641,7 @@ func (eq *EngineQueue) StartPayload(ctx context.Context, parent eth.L2BlockRef, 
 	eq.buildingID = id
 	eq.buildingSafe = updateSafe
 	eq.buildingOnto = parent
+	eq.buildingNoTxPool = attrs.NoTxPool
 	return BlockInsertOK, nil
 }
 
@@ -639,7 +657,7 @@ func (eq *EngineQueue) ConfirmPayload(ctx context.Context) (out *eth.ExecutionPa
 		SafeBlockHash:      eq.safeHead.Hash,
 		FinalizedBlockHash: eq.finalized.Hash,
 	}
-	payload, errTyp, err := ConfirmPayload(ctx, eq.log, eq.engine, fc, eq.buildingID, eq.buildingSafe)
+	payload, errTyp, err := ConfirmPayload(ctx, eq.log, eq.engine, fc, eq.buildingOnto.ID(), eq.buildingID, eq.buildingSafe, eq.buildingNoTxPool)
 	if err != nil {
 		return nil, errTyp, fmt.Errorf("failed to complete building on top of L2 chain %s, id: %s, error (%d): %w", eq.buildingOnto, eq.buildingID, errTyp, err)
 	}

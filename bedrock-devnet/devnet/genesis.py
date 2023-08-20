@@ -3,8 +3,14 @@ import time
 DEV_ACCOUNTS = [
     '3c44cdddb6a900fa2b585dd299e03d12fa4293bc',
     '70997970c51812dc3a010c7d01b50e0d17dc79c8',
-    'f39fd6e51aad88f6f4ce6ab8827279cfffb92266'
+    'f39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+    # mine addresses following:
+    "1023e8DbDebAd480C43f6e19b3381c465c74E933",
+    "977608A20f221f31D0FA10b22664511343CfB3A1",
+    "7a307954D1337af50c00Aa0e2Dbe92Dd9CcfBA80",
+    "4F96987Cf137221B5E235fD9cF0253936C21e45d"
 ]
+
 
 GENESIS_TMPL = {
     'config': {

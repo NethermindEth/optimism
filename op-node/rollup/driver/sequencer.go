@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	// "encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -39,6 +40,8 @@ type Sequencer struct {
 	attrBuilder      derive.AttributesBuilder
 	l1OriginSelector L1OriginSelectorIface
 
+	broadcastPayloadAttrs func(id string, data []byte)
+
 	metrics SequencerMetrics
 
 	// timeNow enables sequencer testing to mock the time
@@ -47,7 +50,7 @@ type Sequencer struct {
 	nextAction time.Time
 }
 
-func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) *Sequencer {
+func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics, broadcastPayloadAttrs func(id string, data []byte)) *Sequencer {
 	return &Sequencer{
 		log:              log,
 		config:           cfg,
@@ -56,6 +59,8 @@ func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEn
 		attrBuilder:      attributesBuilder,
 		l1OriginSelector: l1OriginSelector,
 		metrics:          metrics,
+
+		broadcastPayloadAttrs: broadcastPayloadAttrs,
 	}
 }
 
@@ -84,6 +89,30 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// txs := make(types.Transactions, len(attrs.Transactions))
+	// for i, tx := range attrs.Transactions {
+	// 	txs[i] = new(types.Transaction)
+	// 	txs[i].UnmarshalBinary(tx)
+	// }
+	//
+	// attrsEvent := &eth.BuilderPayloadAttributes{
+	// 	Timestamp:             attrs.Timestamp,
+	// 	Random:                common.Hash(attrs.PrevRandao),
+	// 	SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+	// 	Slot:                  l2Head.Number,
+	// 	HeadHash:              l2Head.Hash,
+	// 	Transactions:          txs,
+	// 	GasLimit:              uint64(*attrs.GasLimit),
+	// }
+	//
+	// attrsData, err := json.Marshal(attrsEvent)
+	// if err != nil {
+	// 	d.log.Error("failed to marshal payload attributes", "err", err)
+	// }
+	//
+	// d.log.Info("broadcasting new payload attributes", "json", string(attrsData))
+	// d.broadcastPayloadAttrs("payload_attributes", attrsData)
 
 	// If our next L2 block timestamp is beyond the Sequencer drift threshold, then we must produce
 	// empty blocks (other than the L1 info deposit and any user deposits). We handle this by

@@ -117,12 +117,27 @@ func StartPayload(ctx context.Context, eng Engine, fc eth.ForkchoiceState, attrs
 // ConfirmPayload ends an execution payload building process in the provided Engine, and persists the payload as the canonical head.
 // If updateSafe is true, then the payload will also be recognized as safe-head at the same time.
 // The severity of the error is distinguished to determine whether the payload was valid and can become canonical.
-func ConfirmPayload(ctx context.Context, log log.Logger, eng Engine, fc eth.ForkchoiceState, id eth.PayloadID, updateSafe bool) (out *eth.ExecutionPayload, errTyp BlockInsertionErrType, err error) {
-	payload, err := eng.GetPayload(ctx, id)
-	if err != nil {
-		// even if it is an input-error (unknown payload ID), it is temporary, since we will re-attempt the full payload building, not just the retrieval of the payload.
-		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to get execution payload: %w", err)
+func ConfirmPayload(ctx context.Context, log log.Logger, eng Engine, fc eth.ForkchoiceState, buildingOnto eth.BlockID, id eth.PayloadID, updateSafe, localOnly bool) (payload *eth.ExecutionPayload, errTyp BlockInsertionErrType, err error) {
+	if localOnly {
+		log.Info("Skipping external builder this time", "reason", "building with NoTxPool")
+		if payload, err = eng.GetPayload(ctx, id); err != nil {
+			// even if it is an input-error (unknown payload ID), it is temporary, since we will re-attempt the full payload building, not just the retrieval of the payload.
+			return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to get execution payload: %w", err)
+		}
+	} else {
+		log.Info("Trying to get payload from external builder", "parent", buildingOnto)
+		if mevPayload, mevErr := eng.GetMevPayload(ctx, buildingOnto.Hash); mevErr != nil {
+			log.Error("Payload from external builder failed", "err", mevErr)
+			if payload, err = eng.GetPayload(ctx, id); err != nil {
+				// even if it is an input-error (unknown payload ID), it is temporary, since we will re-attempt the full payload building, not just the retrieval of the payload.
+				return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to get execution payload: %w", err)
+			}
+		} else {
+			payload = mevPayload
+			log.Info("Payload came from external builder", "id", mevPayload.ID().String())
+		}
 	}
+
 	if err := sanityCheckPayload(payload); err != nil {
 		return nil, BlockInsertPayloadErr, err
 	}

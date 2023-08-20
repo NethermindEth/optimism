@@ -244,6 +244,7 @@ func BlockToBatch(block *types.Block) (*BatchData, L1BlockInfo, error) {
 			EpochNum:     rollup.Epoch(l1Info.Number),
 			EpochHash:    l1Info.BlockHash,
 			Timestamp:    block.Time(),
+			FeeRecipient: block.Coinbase(),
 			Transactions: opaqueTxs,
 		},
 	}, l1Info, nil
