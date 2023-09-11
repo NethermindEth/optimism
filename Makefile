@@ -113,6 +113,7 @@ devnet-clean:
 	cd ./ops-bedrock && docker compose down
 	docker image ls 'ops-bedrock*' --format='{{.Repository}}' | xargs -r docker rmi
 	docker volume ls --filter name=ops-bedrock --format='{{.Name}}' | xargs -r docker volume rm
+	docker network prune -f
 .PHONY: devnet-clean
 
 devnet-allocs:
@@ -120,7 +121,23 @@ devnet-allocs:
 
 devnet-logs:
 	@(cd ./ops-bedrock && docker compose logs -f)
-	.PHONY: devnet-logs
+.PHONY: devnet-logs
+
+devnet-logs-geth:
+	@(cd ./ops-bedrock && docker compose logs -f l2)
+.PHONY: devnet-logs-geth
+
+devnet-logs-neth:
+	@(cd ./ops-bedrock && docker compose logs -f l2-neth)
+.PHONY: devnet-logs-neth
+
+devnet-logs-cl:
+	@(cd ./ops-bedrock && docker compose logs -f op-node)
+.PHONY: devnet-logs-cl
+
+devnet-logs-ncl:
+	@(cd ./ops-bedrock && docker compose logs -f op-node-neth)
+.PHONY: devnet-logs-ncl
 
 test-unit:
 	make -C ./op-node test

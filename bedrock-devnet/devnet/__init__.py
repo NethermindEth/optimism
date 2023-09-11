@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import re
 import subprocess
 import json
 import socket
@@ -213,8 +214,78 @@ def devnet_deploy(paths):
         'L2OO_ADDRESS': l2_output_oracle,
         'SEQUENCER_BATCH_INBOX_ADDRESS': batch_inbox_address
     })
+    enr = get_enr("op-node", paths.ops_bedrock_dir)
+
+    log.info('Bringing up L2 neth.')
+    run_command(['docker', 'compose', 'up', '-d', 'l2-neth'], cwd=paths.ops_bedrock_dir, env={
+        'PWD': paths.ops_bedrock_dir
+    })
+    wait_up(9500)
+    wait_for_rpc_server('127.0.0.1:9500')
+
+    log.info(f'Bringing up op-node-neth. Bootnode={enr}')
+    run_command(['docker', 'compose', 'up', '-d', 'op-node-neth'], cwd=paths.ops_bedrock_dir, env={
+        'PWD': paths.ops_bedrock_dir,
+        'ENR': enr
+    })
 
     log.info('Devnet ready.')
+
+
+def get_enr(container_id, cwd):
+    def extract_enr_value(log_line):
+        match = re.search(r"enr=(\S+)", log_line)
+        if match:
+            return match.group(1)
+        return None
+
+    for _ in range(10):
+        try:
+            logs = subprocess.check_output(
+                f"docker-compose logs {container_id} | grep enr",
+                stderr=subprocess.STDOUT,
+                shell=True,
+                text=True,
+                cwd=cwd,
+            )
+            for line in logs.splitlines():
+                enr_value = extract_enr_value(line)
+                if enr_value:
+                    print(f"Found enr value: {enr_value}")
+                    return enr_value
+        except Exception as e:
+            print(f"Couldn't get enr, retrying: {e}")
+            time.sleep(1)
+
+    raise Exception("Timing out while waiting for enr")
+
+
+def get_enode(container_id, cwd):
+    def extract_enode_value(log_line):
+        match = re.search(r"self=(\S+)", log_line)
+        if match:
+            return match.group(1)
+        return None
+
+    for _ in range(10):
+        try:
+            logs = subprocess.check_output(
+                f"docker-compose logs {container_id} | grep enode",
+                stderr=subprocess.STDOUT,
+                shell=True,
+                text=True,
+                cwd=cwd,
+            )
+            for line in logs.splitlines():
+                enode_value = extract_enode_value(line)
+                if enode_value:
+                    print(f"Found enode value: {enode_value}")
+                    return enode_value
+        except Exception as e:
+            print(f"Couldn't get enode, retrying: {e}")
+            time.sleep(1)
+
+    raise Exception("Timing out while waiting for enode")
 
 
 def eth_accounts(url):
