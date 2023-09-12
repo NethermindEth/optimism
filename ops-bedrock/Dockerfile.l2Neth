@@ -1,6 +1,114 @@
-FROM mcr.microsoft.com/dotnet/sdk:7.0-jammy
+FROM mcr.microsoft.com/dotnet/sdk:7.0
 
-RUN apt-get update && apt-get -y install libsnappy-dev libc6-dev libc6
+WORKDIR /neth/src
 
-# Fix rocksdb issue in ubuntu 22.04 (assumes amd64)
-# RUN ln -s /usr/lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so > /dev/null 2>&1
+COPY src/Nethermind/nuget.config nuget.config
+COPY src/Nethermind/Directory.Packages.props Directory.Packages.props
+
+COPY src/Nethermind/Nethermind.Runner/*.csproj Nethermind.Runner/
+COPY src/Nethermind/Nethermind.Optimism/*.csproj Nethermind.Optimism/
+COPY src/Nethermind/Nethermind.Abi/*.csproj Nethermind.Abi/
+COPY src/Nethermind/Nethermind.AccountAbstraction/*.csproj Nethermind.AccountAbstraction/
+COPY src/Nethermind/Nethermind.Api/*.csproj Nethermind.Api/
+COPY src/Nethermind/Nethermind.Blockchain/*.csproj Nethermind.Blockchain/
+COPY src/Nethermind/Nethermind.Config/*.csproj Nethermind.Config/
+COPY src/Nethermind/Nethermind.Consensus/*.csproj Nethermind.Consensus/
+COPY src/Nethermind/Nethermind.Consensus.AuRa/*.csproj Nethermind.Consensus.AuRa/
+COPY src/Nethermind/Nethermind.Consensus.Clique/*.csproj Nethermind.Consensus.Clique/
+COPY src/Nethermind/Nethermind.Consensus.Ethash/*.csproj Nethermind.Consensus.Ethash/
+COPY src/Nethermind/Nethermind.Core/*.csproj Nethermind.Core/
+COPY src/Nethermind/Nethermind.Crypto/*.csproj Nethermind.Crypto/
+COPY src/Nethermind/Nethermind.Db/*.csproj Nethermind.Db/
+COPY src/Nethermind/Nethermind.Db.Rocks/*.csproj Nethermind.Db.Rocks/
+COPY src/Nethermind/Nethermind.Db.Rpc/*.csproj Nethermind.Db.Rpc/
+COPY src/Nethermind/Nethermind.EthStats/*.csproj Nethermind.EthStats/
+COPY src/Nethermind/Nethermind.Evm/*.csproj Nethermind.Evm/
+COPY src/Nethermind/Nethermind.Facade/*.csproj Nethermind.Facade/
+COPY src/Nethermind/Nethermind.Grpc/*.csproj Nethermind.Grpc/
+COPY src/Nethermind/Nethermind.HealthChecks/*.csproj Nethermind.HealthChecks/
+COPY src/Nethermind/Nethermind.Hive/*.csproj Nethermind.Hive/
+COPY src/Nethermind/Nethermind.Init/*.csproj Nethermind.Init/
+COPY src/Nethermind/Nethermind.JsonRpc/*.csproj Nethermind.JsonRpc/
+COPY src/Nethermind/Nethermind.JsonRpc.TraceStore/*.csproj Nethermind.JsonRpc.TraceStore/
+COPY src/Nethermind/Nethermind.KeyStore/*.csproj Nethermind.KeyStore/
+COPY src/Nethermind/Nethermind.Logging/*.csproj Nethermind.Logging/
+COPY src/Nethermind/Nethermind.Logging.NLog/*.csproj Nethermind.Logging.NLog/
+COPY src/Nethermind/Nethermind.Merge.AuRa/*.csproj Nethermind.Merge.AuRa/
+COPY src/Nethermind/Nethermind.Merge.Plugin/*.csproj Nethermind.Merge.Plugin/
+COPY src/Nethermind/Nethermind.Mev/*.csproj Nethermind.Mev/
+COPY src/Nethermind/Nethermind.Monitoring/*.csproj Nethermind.Monitoring/
+COPY src/Nethermind/Nethermind.Network/*.csproj Nethermind.Network/
+COPY src/Nethermind/Nethermind.Network.Contract/*.csproj Nethermind.Network.Contract/
+COPY src/Nethermind/Nethermind.Network.Discovery/*.csproj Nethermind.Network.Discovery/
+COPY src/Nethermind/Nethermind.Network.Dns/*.csproj Nethermind.Network.Dns/
+COPY src/Nethermind/Nethermind.Network.Enr/*.csproj Nethermind.Network.Enr/
+COPY src/Nethermind/Nethermind.Network.Stats/*.csproj Nethermind.Network.Stats/
+COPY src/Nethermind/Nethermind.Seq/*.csproj Nethermind.Seq/
+COPY src/Nethermind/Nethermind.Serialization.Json/*.csproj Nethermind.Serialization.Json/
+COPY src/Nethermind/Nethermind.Serialization.Rlp/*.csproj Nethermind.Serialization.Rlp/
+COPY src/Nethermind/Nethermind.Sockets/*.csproj Nethermind.Sockets/
+COPY src/Nethermind/Nethermind.Specs/*.csproj Nethermind.Specs/
+COPY src/Nethermind/Nethermind.State/*.csproj Nethermind.State/
+COPY src/Nethermind/Nethermind.Synchronization/*.csproj Nethermind.Synchronization/
+COPY src/Nethermind/Nethermind.Trie/*.csproj Nethermind.Trie/
+COPY src/Nethermind/Nethermind.TxPool/*.csproj Nethermind.TxPool/
+COPY src/Nethermind/Nethermind.UPnP.Plugin/*.csproj Nethermind.UPnP.Plugin/
+COPY src/Nethermind/Nethermind.Wallet/*.csproj Nethermind.Wallet/
+
+RUN dotnet restore Nethermind.Runner/Nethermind.Runner.csproj
+
+COPY src/Nethermind/Nethermind.Runner/ Nethermind.Runner/
+COPY src/Nethermind/Nethermind.Optimism/ Nethermind.Optimism/
+COPY src/Nethermind/Nethermind.Abi/ Nethermind.Abi/
+COPY src/Nethermind/Nethermind.AccountAbstraction/ Nethermind.AccountAbstraction/
+COPY src/Nethermind/Nethermind.Api/ Nethermind.Api/
+COPY src/Nethermind/Nethermind.Blockchain/ Nethermind.Blockchain/
+COPY src/Nethermind/Nethermind.Config/ Nethermind.Config/
+COPY src/Nethermind/Nethermind.Consensus/ Nethermind.Consensus/
+COPY src/Nethermind/Nethermind.Consensus.AuRa/ Nethermind.Consensus.AuRa/
+COPY src/Nethermind/Nethermind.Consensus.Clique/ Nethermind.Consensus.Clique/
+COPY src/Nethermind/Nethermind.Consensus.Ethash/ Nethermind.Consensus.Ethash/
+COPY src/Nethermind/Nethermind.Core/ Nethermind.Core/
+COPY src/Nethermind/Nethermind.Crypto/ Nethermind.Crypto/
+COPY src/Nethermind/Nethermind.Db/ Nethermind.Db/
+COPY src/Nethermind/Nethermind.Db.Rocks/ Nethermind.Db.Rocks/
+COPY src/Nethermind/Nethermind.Db.Rpc/ Nethermind.Db.Rpc/
+COPY src/Nethermind/Nethermind.EthStats/ Nethermind.EthStats/
+COPY src/Nethermind/Nethermind.Evm/ Nethermind.Evm/
+COPY src/Nethermind/Nethermind.Facade/ Nethermind.Facade/
+COPY src/Nethermind/Nethermind.Grpc/ Nethermind.Grpc/
+COPY src/Nethermind/Nethermind.HealthChecks/ Nethermind.HealthChecks/
+COPY src/Nethermind/Nethermind.Hive/ Nethermind.Hive/
+COPY src/Nethermind/Nethermind.Init/ Nethermind.Init/
+COPY src/Nethermind/Nethermind.JsonRpc/ Nethermind.JsonRpc/
+COPY src/Nethermind/Nethermind.JsonRpc.TraceStore/ Nethermind.JsonRpc.TraceStore/
+COPY src/Nethermind/Nethermind.KeyStore/ Nethermind.KeyStore/
+COPY src/Nethermind/Nethermind.Logging/ Nethermind.Logging/
+COPY src/Nethermind/Nethermind.Logging.NLog/ Nethermind.Logging.NLog/
+COPY src/Nethermind/Nethermind.Merge.AuRa/ Nethermind.Merge.AuRa/
+COPY src/Nethermind/Nethermind.Merge.Plugin/ Nethermind.Merge.Plugin/
+COPY src/Nethermind/Nethermind.Mev/ Nethermind.Mev/
+COPY src/Nethermind/Nethermind.Monitoring/ Nethermind.Monitoring/
+COPY src/Nethermind/Nethermind.Network/ Nethermind.Network/
+COPY src/Nethermind/Nethermind.Network.Contract/ Nethermind.Network.Contract/
+COPY src/Nethermind/Nethermind.Network.Discovery/ Nethermind.Network.Discovery/
+COPY src/Nethermind/Nethermind.Network.Dns/ Nethermind.Network.Dns/
+COPY src/Nethermind/Nethermind.Network.Enr/ Nethermind.Network.Enr/
+COPY src/Nethermind/Nethermind.Network.Stats/ Nethermind.Network.Stats/
+COPY src/Nethermind/Nethermind.Seq/ Nethermind.Seq/
+COPY src/Nethermind/Nethermind.Serialization.Json/ Nethermind.Serialization.Json/
+COPY src/Nethermind/Nethermind.Serialization.Rlp/ Nethermind.Serialization.Rlp/
+COPY src/Nethermind/Nethermind.Sockets/ Nethermind.Sockets/
+COPY src/Nethermind/Nethermind.Specs/ Nethermind.Specs/
+COPY src/Nethermind/Nethermind.State/ Nethermind.State/
+COPY src/Nethermind/Nethermind.Synchronization/ Nethermind.Synchronization/
+COPY src/Nethermind/Nethermind.Trie/ Nethermind.Trie/
+COPY src/Nethermind/Nethermind.TxPool/ Nethermind.TxPool/
+COPY src/Nethermind/Nethermind.UPnP.Plugin/ Nethermind.UPnP.Plugin/
+COPY src/Nethermind/Nethermind.Wallet/ Nethermind.Wallet/
+
+RUN dotnet build --no-restore -p:Commit="12345678" -o /neth/bin Nethermind.Runner/Nethermind.Runner.csproj
+
+EXPOSE 8545 8551 30303
+
+ENTRYPOINT ["/neth/bin/nethermind"]

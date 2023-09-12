@@ -194,8 +194,8 @@ services:
         ipv4_address: 172.20.0.8
       standard:
     build:
-      context: .
-      dockerfile: Dockerfile.l2Neth
+      context: ../../neth/optimism
+      dockerfile: "${PWD}/Dockerfile.l2Neth"
     depends_on:
       - l1
       - l2
@@ -206,26 +206,26 @@ services:
       - "18061:6060"
     volumes:
       - "l2_neth_data:/db"
-      - "${PWD}/../../neth/optimism:/source"
       - "${PWD}/../.devnet/genesis-l2.json-neth:/genesis.json"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
-    command: >
-      dotnet run -p:Commit="12345678" --project /source/src/Nethermind/Nethermind.Runner/Nethermind.Runner.csproj
-      --
-      --datadir=/datadir
-      --config=none
-      --Init.ChainSpecPath=/genesis.json
-      --JsonRpc.Enabled=true
-      --JsonRpc.Host=0.0.0.0
-      --JsonRpc.Port=8545
-      --JsonRpc.WebSocketsPort=8546
-      --JsonRpc.EngineHost=0.0.0.0
-      --JsonRpc.EnginePort=8551
-      --JsonRpc.JwtSecretFile=/config/test-jwt-secret.txt
-      --Blocks.SecondsPerSlot=2
-      --Network.ExternalIp=172.20.0.8
-      --Network.Bootnodes=enode://95f711311375a92cbc3c16f4f1e9147f69fe45ff73c3ce71202d3e78628bd545fb2441c539165c48361e1cbbb0d06d19e46e80ecee8729d2810932092dc0143d@172.20.0.6:30303
-      --Discovery.Bootnodes=enode://95f711311375a92cbc3c16f4f1e9147f69fe45ff73c3ce71202d3e78628bd545fb2441c539165c48361e1cbbb0d06d19e46e80ecee8729d2810932092dc0143d@172.20.0.6:30303
+    command:
+      - --config=none
+      - --datadir=/datadir
+      - --Init.ChainSpecPath=/genesis.json
+      - --Init.DiscoveryEnabled=false
+      - --Init.PeerManagerEnabled=false
+      - --Sync.NetworkingEnabled=false
+      - --JsonRpc.Enabled=true
+      - --JsonRpc.Host=0.0.0.0
+      - --JsonRpc.Port=8545
+      - --JsonRpc.WebSocketsPort=8546
+      - --JsonRpc.EngineHost=0.0.0.0
+      - --JsonRpc.EnginePort=8551
+      - --JsonRpc.JwtSecretFile=/config/test-jwt-secret.txt
+      - --Blocks.SecondsPerSlot=2
+      - --Network.ExternalIp=172.20.0.8
+      - --Network.Bootnodes=enode://95f711311375a92cbc3c16f4f1e9147f69fe45ff73c3ce71202d3e78628bd545fb2441c539165c48361e1cbbb0d06d19e46e80ecee8729d2810932092dc0143d@172.20.0.6:30303
+      - --Discovery.Bootnodes=enode://95f711311375a92cbc3c16f4f1e9147f69fe45ff73c3ce71202d3e78628bd545fb2441c539165c48361e1cbbb0d06d19e46e80ecee8729d2810932092dc0143d@172.20.0.6:30303
 
   op-node-neth:
     restart: on-failure:5
