@@ -219,11 +219,11 @@ type nethSpecEngineParams struct {
 
 type nethSpecParams struct {
 	ChainID                            string         `json:"chainId"`
-	GasLimitBoundDivisor               hexutil.Uint   `json:"gasLimitBoundDivisor"`
-	AccountStartNonce                  hexutil.Uint   `json:"accountStartNonce"`
-	MaximumExtraDataSize               hexutil.Uint   `json:"maximumExtraDataSize"`
-	MinGasLimit                        hexutil.Uint   `json:"minGasLimit"`
-	ForkBlock                          hexutil.Uint   `json:"forkBlock"`
+	// GasLimitBoundDivisor               hexutil.Uint   `json:"gasLimitBoundDivisor"`
+	// AccountStartNonce                  hexutil.Uint   `json:"accountStartNonce"`
+	// MaximumExtraDataSize               hexutil.Uint   `json:"maximumExtraDataSize"`
+	// MinGasLimit                        hexutil.Uint   `json:"minGasLimit"`
+	// ForkBlock                          hexutil.Uint   `json:"forkBlock"`
 	MaxCodeSize                        hexutil.Uint   `json:"maxCodeSize"`
 	MaxCodeSizeTransition              hexutil.Uint   `json:"maxCodeSizeTransition"`
 	Eip150Transition                   hexutil.Uint   `json:"eip150Transition"`
