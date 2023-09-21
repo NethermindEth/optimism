@@ -205,6 +205,7 @@ services:
       - "9501:8551"
       - "18061:6060"
     volumes:
+      - "${PWD}/tmp:/tmp"
       - "l2_neth_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json-neth:/genesis.json"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
@@ -214,6 +215,7 @@ services:
       - --Init.ChainSpecPath=/genesis.json
       - --Init.DiscoveryEnabled=false
       - --Init.PeerManagerEnabled=false
+      - --Init.AutoDump=All
       - --Sync.NetworkingEnabled=false
       - --JsonRpc.Enabled=true
       - --JsonRpc.Host=0.0.0.0
