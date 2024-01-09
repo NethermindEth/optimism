@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -45,17 +46,20 @@ type Sequencer struct {
 	timeNow func() time.Time
 
 	nextAction time.Time
+
+	broadcastAttributes func(id string, data []byte)
 }
 
-func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) *Sequencer {
+func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics, broadcastAttributes func(id string, data []byte)) *Sequencer {
 	return &Sequencer{
-		log:              log,
-		config:           cfg,
-		engine:           engine,
-		timeNow:          time.Now,
-		attrBuilder:      attributesBuilder,
-		l1OriginSelector: l1OriginSelector,
-		metrics:          metrics,
+		log:                 log,
+		config:              cfg,
+		engine:              engine,
+		timeNow:             time.Now,
+		attrBuilder:         attributesBuilder,
+		l1OriginSelector:    l1OriginSelector,
+		metrics:             metrics,
+		broadcastAttributes: broadcastAttributes,
 	}
 }
 
@@ -95,12 +99,46 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 		"num", l2Head.Number+1, "time", uint64(attrs.Timestamp),
 		"origin", l1Origin, "origin_time", l1Origin.Time, "noTxPool", attrs.NoTxPool)
 
+	// broadcast the prepared attributes to the event listeners.
+	err = d.broadcast(attrs, l2Head)
+	if err != nil {
+		log.Error("failed to broadcast attributes", "err", err)
+	}
+
 	// Start a payload building process.
 	withParent := derive.NewAttributesWithParent(attrs, l2Head, false)
 	errTyp, err := d.engine.StartPayload(ctx, l2Head, withParent, false)
 	if err != nil {
 		return fmt.Errorf("failed to start building on top of L2 chain %s, error (%d): %w", l2Head, errTyp, err)
 	}
+	return nil
+}
+
+func (d *Sequencer) broadcast(attrs *eth.PayloadAttributes, l2Head eth.L2BlockRef) error {
+	log.Info("broadcasting attributes", "attrs", attrs, "l2Head", l2Head)
+	txs := make(types.Transactions, len(attrs.Transactions))
+	for i, tx := range attrs.Transactions {
+		txs[i] = new(types.Transaction)
+		txs[i].UnmarshalBinary(tx)
+	}
+
+	builderAttrs := &eth.BuilderPayloadAttributes{
+		Timestamp:             attrs.Timestamp,
+		Random:                common.Hash(attrs.PrevRandao),
+		SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+		Slot:                  l2Head.Number + 1,
+		HeadHash:              l2Head.Hash,
+		Withdrawals:           *attrs.Withdrawals,
+		Transactions:          txs,
+		GasLimit:              uint64(*attrs.GasLimit),
+	}
+	attrsJson, err := json.Marshal(builderAttrs)
+	log.Info("broadcasting attributes", "attrsJson", attrsJson)
+	if err != nil {
+		return err
+	}
+	log.Info("broadcast", "broadcastAttributes", d.broadcastAttributes)
+	d.broadcastAttributes("payload_attributes", attrsJson)
 	return nil
 }
 

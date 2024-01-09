@@ -261,6 +261,17 @@ type PayloadAttributes struct {
 	GasLimit *Uint64Quantity `json:"gasLimit,omitempty"`
 }
 
+type BuilderPayloadAttributes struct {
+	Timestamp             hexutil.Uint64     `json:"timestamp"`
+	Random                common.Hash        `json:"prevRandao"`
+	SuggestedFeeRecipient common.Address     `json:"suggestedFeeRecipient,omitempty"`
+	Slot                  uint64             `json:"slot"`
+	HeadHash              common.Hash        `json:"blockHash"`
+	Withdrawals           types.Withdrawals  `json:"withdrawals,omitempty"`
+	Transactions          types.Transactions `json:"transactions"`
+	GasLimit              uint64             `json:"gasLimit"`
+}
+
 type ExecutePayloadStatus string
 
 const (
