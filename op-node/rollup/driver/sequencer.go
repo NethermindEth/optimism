@@ -115,7 +115,6 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 }
 
 func (d *Sequencer) broadcast(attrs *eth.PayloadAttributes, l2Head eth.L2BlockRef) error {
-	log.Info("broadcasting attributes", "attrs", attrs, "l2Head", l2Head)
 	txs := make(types.Transactions, len(attrs.Transactions))
 	for i, tx := range attrs.Transactions {
 		txs[i] = new(types.Transaction)
@@ -132,12 +131,11 @@ func (d *Sequencer) broadcast(attrs *eth.PayloadAttributes, l2Head eth.L2BlockRe
 		Transactions:          txs,
 		GasLimit:              uint64(*attrs.GasLimit),
 	}
+	log.Info("broadcasting attributes", "builderAttrs", builderAttrs)
 	attrsJson, err := json.Marshal(builderAttrs)
-	log.Info("broadcasting attributes", "attrsJson", attrsJson)
 	if err != nil {
 		return err
 	}
-	log.Info("broadcast", "broadcastAttributes", d.broadcastAttributes)
 	d.broadcastAttributes("payload_attributes", attrsJson)
 	return nil
 }
