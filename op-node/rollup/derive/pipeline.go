@@ -81,7 +81,8 @@ type DerivationPipeline struct {
 }
 
 // NewDerivationPipeline creates a derivation pipeline, which should be reset before use.
-func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetcher, l1Blobs L1BlobsFetcher, engine Engine, metrics Metrics, syncCfg *sync.Config) *DerivationPipeline {
+func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetcher, l1Blobs L1BlobsFetcher, engine Engine, metrics Metrics,
+	syncCfg *sync.Config, broadcastFn func(string, []byte)) *DerivationPipeline {
 
 	// Pull stages
 	l1Traversal := NewL1Traversal(log, cfg, l1Fetcher)
@@ -92,7 +93,7 @@ func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetch
 	chInReader := NewChannelInReader(cfg, log, bank, metrics)
 	batchQueue := NewBatchQueue(log, cfg, chInReader, engine)
 	attrBuilder := NewFetchingAttributesBuilder(cfg, l1Fetcher, engine)
-	attributesQueue := NewAttributesQueue(log, cfg, attrBuilder, batchQueue)
+	attributesQueue := NewAttributesQueue(log, cfg, attrBuilder, batchQueue, broadcastFn)
 
 	// Step stages
 	eng := NewEngineQueue(log, cfg, engine, metrics, attributesQueue, l1Fetcher, syncCfg)

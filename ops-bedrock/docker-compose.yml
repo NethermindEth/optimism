@@ -82,7 +82,7 @@ services:
       --p2p.listen.tcp=9003
       --p2p.listen.udp=9003
       --p2p.scoring.peers=light
-      --p2p.ban.peers=true
+      --p2p.ban.peers=false
       --snapshotlog.file=/op_log/snapshot.log
       --p2p.priv.path=/config/p2p-node-key.txt
       --metrics.enabled
@@ -207,6 +207,7 @@ services:
       - --keystore=/keystore/keystore
       - --unlock=0xB5fEAfbDD752ad52Afb7e1bD2E40432A485bBB7F
       - --password=/keystore/password.txt
+      - --log.debug
       - --suave.eth.remote_endpoint=op-builder:8545  # using op-builder as remote rpc backend
     volumes:
       - ./suave-ex-node:/keystore
@@ -220,19 +221,20 @@ services:
     build:
       context: ../
       dockerfile: ./op-node/Dockerfile
+      args:
+        OP_STACK_GO_BUILDER: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-stack-go:devnet
     command: >
       op-node
       --l1=ws://l1:8546
-      --l2=http://l2-builder-2:8551
+      --l2=http://op-builder:8551
       --l2.jwt-secret=/config/test-jwt-secret.txt
       --rollup.config=/rollup.json
       --rpc.addr=0.0.0.0
-      --rpc.port=8500
+      --rpc.port=8545
       --rpc.enable-admin
-      --p2p.advertise.ip=172.20.0.11
       --p2p.bootnodes=${ENR}
     ports:
-      - "7600:8500"
+      - "7600:8545"
     volumes:
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
       - "${PWD}/../.devnet/rollup.json:/rollup.json"
@@ -251,4 +253,4 @@ services:
       - "/entrypoint.sh"
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
       - "--suave"
-      - "--suave.beacon_endpoint=op-node-builder:8502"
+      - "--suave.beacon_endpoint=http://op-node-builder:8547"

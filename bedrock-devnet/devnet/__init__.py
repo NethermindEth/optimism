@@ -255,6 +255,13 @@ def devnet_deploy(paths):
         'PWD': paths.ops_bedrock_dir
     })
 
+    log.info('Bringing up suave')
+    run_command(['docker', 'compose', 'up', '-d', 'op-builder', 'op-node-builder', 'suave'], cwd=paths.ops_bedrock_dir, env={
+        'PWD': paths.ops_bedrock_dir,
+        'L2OO_ADDRESS': l2_output_oracle,
+        'SEQUENCER_BATCH_INBOX_ADDRESS': batch_inbox_address
+    })
+
     log.info('Devnet ready.')
 
 

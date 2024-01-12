@@ -2,10 +2,13 @@ package derive
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
@@ -33,15 +36,17 @@ type AttributesQueue struct {
 	builder      AttributesBuilder
 	prev         *BatchQueue
 	batch        *SingularBatch
+	broadcastFn  func(topic string, data []byte)
 	isLastInSpan bool
 }
 
-func NewAttributesQueue(log log.Logger, cfg *rollup.Config, builder AttributesBuilder, prev *BatchQueue) *AttributesQueue {
+func NewAttributesQueue(log log.Logger, cfg *rollup.Config, builder AttributesBuilder, prev *BatchQueue, broadcastFn func(string, []byte)) *AttributesQueue {
 	return &AttributesQueue{
-		log:     log,
-		config:  cfg,
-		builder: builder,
-		prev:    prev,
+		log:         log,
+		config:      cfg,
+		builder:     builder,
+		prev:        prev,
+		broadcastFn: broadcastFn,
 	}
 }
 
@@ -64,6 +69,12 @@ func (aq *AttributesQueue) NextAttributes(ctx context.Context, parent eth.L2Bloc
 	if attrs, err := aq.createNextAttributes(ctx, aq.batch, parent); err != nil {
 		return nil, err
 	} else {
+		if aq.broadcastFn != nil {
+			aq.broadcastAttributes(attrs, parent)
+			if err != nil {
+				log.Warn("failed to broadcast attributes", "err", err)
+			}
+		}
 		// Clear out the local state once we will succeed
 		attr := AttributesWithParent{attrs, parent, aq.isLastInSpan}
 		aq.batch = nil
@@ -71,6 +82,33 @@ func (aq *AttributesQueue) NextAttributes(ctx context.Context, parent eth.L2Bloc
 		return &attr, nil
 	}
 
+}
+
+// Push latest attribtues to server side event stream.
+func (aq *AttributesQueue) broadcastAttributes(attrs *eth.PayloadAttributes, l2Head eth.L2BlockRef) error {
+	txs := make(types.Transactions, len(attrs.Transactions))
+	for i, tx := range attrs.Transactions {
+		txs[i] = new(types.Transaction)
+		txs[i].UnmarshalBinary(tx)
+	}
+
+	builderAttrs := &eth.BuilderPayloadAttributes{
+		Timestamp:             attrs.Timestamp,
+		Random:                common.Hash(attrs.PrevRandao),
+		SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+		Slot:                  l2Head.Number + 1,
+		HeadHash:              l2Head.Hash,
+		Withdrawals:           *attrs.Withdrawals,
+		Transactions:          txs,
+		GasLimit:              uint64(*attrs.GasLimit),
+	}
+	log.Info("broadcasting attributes", "builderAttrs", builderAttrs)
+	attrsJson, err := json.Marshal(builderAttrs)
+	if err != nil {
+		return err
+	}
+	aq.broadcastFn("payload_attributes", attrsJson)
+	return nil
 }
 
 // createNextAttributes transforms a batch into a payload attributes. This sets `NoTxPool` and appends the batched transactions
