@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
+	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -24,18 +25,18 @@ type Derivation interface {
 
 type L2Source interface {
 	derive.Engine
-	L2OutputRoot() (eth.Bytes32, error)
+	L2OutputRoot(uint64) (eth.Bytes32, error)
 }
 
 type Driver struct {
 	logger         log.Logger
 	pipeline       Derivation
-	l2OutputRoot   func() (eth.Bytes32, error)
+	l2OutputRoot   func(uint64) (eth.Bytes32, error)
 	targetBlockNum uint64
 }
 
 func NewDriver(logger log.Logger, cfg *rollup.Config, l1Source derive.L1Fetcher, l2Source L2Source, targetBlockNum uint64) *Driver {
-	pipeline := derive.NewDerivationPipeline(logger, cfg, l1Source, l2Source, metrics.NoopMetrics)
+	pipeline := derive.NewDerivationPipeline(logger, cfg, l1Source, nil, l2Source, metrics.NoopMetrics, &sync.Config{}, nil)
 	pipeline.Reset()
 	return &Driver{
 		logger:         logger,
@@ -76,8 +77,8 @@ func (d *Driver) SafeHead() eth.L2BlockRef {
 	return d.pipeline.SafeL2Head()
 }
 
-func (d *Driver) ValidateClaim(claimedOutputRoot eth.Bytes32) error {
-	outputRoot, err := d.l2OutputRoot()
+func (d *Driver) ValidateClaim(l2ClaimBlockNum uint64, claimedOutputRoot eth.Bytes32) error {
+	outputRoot, err := d.l2OutputRoot(l2ClaimBlockNum)
 	if err != nil {
 		return fmt.Errorf("calculate L2 output root: %w", err)
 	}

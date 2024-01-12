@@ -16,7 +16,7 @@ pnpm build
 
 ## Running the service
 
-Copy `.env.example` into a new file named `.env`, then set the environment variables listed there. Additional env setting are listed on `--help`. If running the fault detector against
+Copy `.env.example` into a new file named `.env`, then set the environment variables listed there. Additional env settings are listed on `--help`. If running the fault detector against
 a custom op chain, the `OptimismPortal` contract addresses must also be set associated with the op-chain.
 
 Once your environment variables or flags have been set, run the service via:
@@ -48,7 +48,7 @@ Check the list of available metrics via `pnpm start --help`:
 
 ```sh
 > pnpm start --help
-$ ts-node ./src/service.ts --help
+$ tsx ./src/service.ts --help
 Usage: service [options]
 
 Options:

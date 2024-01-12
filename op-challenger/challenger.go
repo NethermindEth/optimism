@@ -2,19 +2,19 @@ package op_challenger
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/config"
-	"github.com/ethereum-optimism/optimism/op-challenger/fault"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum-optimism/optimism/op-challenger/game"
+	"github.com/ethereum-optimism/optimism/op-service/cliapp"
 )
 
-// Main is the programmatic entry-point for running op-challenger
-func Main(ctx context.Context, logger log.Logger, cfg *config.Config) error {
-	service, err := fault.NewService(ctx, logger, cfg)
-	if err != nil {
-		return fmt.Errorf("failed to create the fault service: %w", err)
+// Main is the programmatic entry-point for running op-challenger with a given configuration.
+func Main(ctx context.Context, logger log.Logger, cfg *config.Config) (cliapp.Lifecycle, error) {
+	if err := cfg.Check(); err != nil {
+		return nil, err
 	}
-
-	return service.MonitorGame(ctx)
+	srv, err := game.NewService(ctx, logger, cfg)
+	return srv, err
 }

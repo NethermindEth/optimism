@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -135,6 +135,33 @@ func TestProcessSystemConfigUpdateLogEvent(t *testing.T) {
 			},
 			config: eth.SystemConfig{
 				GasLimit: 0xbb,
+			},
+			err: false,
+		},
+		{
+			// The ecotone scalars should be updated
+			name: "SystemConfigUpdateGasConfigEcotone",
+			log: &types.Log{
+				Topics: []common.Hash{
+					ConfigUpdateEventABIHash,
+					ConfigUpdateEventVersion0,
+					SystemConfigUpdateGasConfigEcotone,
+				},
+			},
+			hook: func(t *testing.T, log *types.Log) *types.Log {
+				basefeeScalar := big.NewInt(0xaa)
+				blobBasefeeScalar := big.NewInt(0xbb)
+				packed := make([]byte, 8)
+				basefeeScalar.FillBytes(packed[0:4])
+				blobBasefeeScalar.FillBytes(packed[4:8])
+				data, err := bytesArgs.Pack(packed)
+				require.NoError(t, err)
+				log.Data = data
+				return log
+			},
+			config: eth.SystemConfig{
+				BasefeeScalar:     0xaa,
+				BlobBasefeeScalar: 0xbb,
 			},
 			err: false,
 		},

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { Predeploys } from "../libraries/Predeploys.sol";
-import { OptimismMintableERC20 } from "../universal/OptimismMintableERC20.sol";
+import { Predeploys } from "src/libraries/Predeploys.sol";
+import { OptimismMintableERC20 } from "src/universal/OptimismMintableERC20.sol";
 
 /// @custom:legacy
 /// @custom:proxied
@@ -14,9 +14,7 @@ import { OptimismMintableERC20 } from "../universal/OptimismMintableERC20.sol";
 ///         disabled as part of the EVM equivalence upgrade.
 contract LegacyERC20ETH is OptimismMintableERC20 {
     /// @notice Initializes the contract as an Optimism Mintable ERC20.
-    constructor()
-        OptimismMintableERC20(Predeploys.L2_STANDARD_BRIDGE, address(0), "Ether", "ETH")
-    {}
+    constructor() OptimismMintableERC20(Predeploys.L2_STANDARD_BRIDGE, address(0), "Ether", "ETH", 18) { }
 
     /// @notice Returns the ETH balance of the target account. Overrides the base behavior of the
     ///         contract to preserve the invariant that the balance within this contract always
@@ -53,11 +51,7 @@ contract LegacyERC20ETH is OptimismMintableERC20 {
 
     /// @custom:blocked
     /// @notice Transfers funds from some sender account.
-    function transferFrom(
-        address,
-        address,
-        uint256
-    ) public virtual override returns (bool) {
+    function transferFrom(address, address, uint256) public virtual override returns (bool) {
         revert("LegacyERC20ETH: transferFrom is disabled");
     }
 

@@ -4,7 +4,8 @@ pragma solidity ^0.8.0;
 import { Script } from "forge-std/Script.sol";
 import { console2 as console } from "forge-std/console2.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { Executables } from "./Executables.sol";
+import { Executables } from "scripts/Executables.sol";
+import { Chains } from "scripts/Chains.sol";
 
 /// @title DeployConfig
 /// @notice Represents the configuration required to deploy the system. It is expected
@@ -14,8 +15,7 @@ contract DeployConfig is Script {
     string internal _json;
 
     address public finalSystemOwner;
-    address public controller;
-    address public portalGuardian;
+    address public superchainConfigGuardian;
     uint256 public l1ChainID;
     uint256 public l2ChainID;
     uint256 public l2BlockTime;
@@ -33,8 +33,11 @@ contract DeployConfig is Script {
     uint256 public finalizationPeriodSeconds;
     address public proxyAdminOwner;
     address public baseFeeVaultRecipient;
+    uint256 public baseFeeVaultMinimumWithdrawalAmount;
     address public l1FeeVaultRecipient;
+    uint256 public l1FeeVaultMinimumWithdrawalAmount;
     address public sequencerFeeVaultRecipient;
+    uint256 public sequencerFeeVaultMinimumWithdrawalAmount;
     string public governanceTokenName;
     string public governanceTokenSymbol;
     address public governanceTokenOwner;
@@ -45,8 +48,14 @@ contract DeployConfig is Script {
     uint256 public eip1559Denominator;
     uint256 public eip1559Elasticity;
     uint256 public faultGameAbsolutePrestate;
+    uint256 public faultGameGenesisBlock;
+    bytes32 public faultGameGenesisOutputRoot;
     uint256 public faultGameMaxDepth;
+    uint256 public faultGameSplitDepth;
     uint256 public faultGameMaxDuration;
+    uint256 public systemConfigStartBlock;
+    uint256 public requiredProtocolVersion;
+    uint256 public recommendedProtocolVersion;
 
     constructor(string memory _path) {
         console.log("DeployConfig: reading file %s", _path);
@@ -58,8 +67,7 @@ contract DeployConfig is Script {
         }
 
         finalSystemOwner = stdJson.readAddress(_json, "$.finalSystemOwner");
-        controller = stdJson.readAddress(_json, "$.controller");
-        portalGuardian = stdJson.readAddress(_json, "$.portalGuardian");
+        superchainConfigGuardian = stdJson.readAddress(_json, "$.superchainConfigGuardian");
         l1ChainID = stdJson.readUint(_json, "$.l1ChainID");
         l2ChainID = stdJson.readUint(_json, "$.l2ChainID");
         l2BlockTime = stdJson.readUint(_json, "$.l2BlockTime");
@@ -77,8 +85,11 @@ contract DeployConfig is Script {
         finalizationPeriodSeconds = stdJson.readUint(_json, "$.finalizationPeriodSeconds");
         proxyAdminOwner = stdJson.readAddress(_json, "$.proxyAdminOwner");
         baseFeeVaultRecipient = stdJson.readAddress(_json, "$.baseFeeVaultRecipient");
+        baseFeeVaultMinimumWithdrawalAmount = stdJson.readUint(_json, "$.baseFeeVaultMinimumWithdrawalAmount");
         l1FeeVaultRecipient = stdJson.readAddress(_json, "$.l1FeeVaultRecipient");
+        l1FeeVaultMinimumWithdrawalAmount = stdJson.readUint(_json, "$.l1FeeVaultMinimumWithdrawalAmount");
         sequencerFeeVaultRecipient = stdJson.readAddress(_json, "$.sequencerFeeVaultRecipient");
+        sequencerFeeVaultMinimumWithdrawalAmount = stdJson.readUint(_json, "$.sequencerFeeVaultMinimumWithdrawalAmount");
         governanceTokenName = stdJson.readString(_json, "$.governanceTokenName");
         governanceTokenSymbol = stdJson.readString(_json, "$.governanceTokenSymbol");
         governanceTokenOwner = stdJson.readAddress(_json, "$.governanceTokenOwner");
@@ -88,11 +99,20 @@ contract DeployConfig is Script {
         gasPriceOracleScalar = stdJson.readUint(_json, "$.gasPriceOracleScalar");
         eip1559Denominator = stdJson.readUint(_json, "$.eip1559Denominator");
         eip1559Elasticity = stdJson.readUint(_json, "$.eip1559Elasticity");
+        systemConfigStartBlock = stdJson.readUint(_json, "$.systemConfigStartBlock");
+        requiredProtocolVersion = stdJson.readUint(_json, "$.requiredProtocolVersion");
+        recommendedProtocolVersion = stdJson.readUint(_json, "$.recommendedProtocolVersion");
 
-        if (block.chainid == 900) {
+        if (
+            block.chainid == Chains.LocalDevnet || block.chainid == Chains.GethDevnet || block.chainid == Chains.Sepolia
+                || block.chainid == Chains.Goerli
+        ) {
             faultGameAbsolutePrestate = stdJson.readUint(_json, "$.faultGameAbsolutePrestate");
             faultGameMaxDepth = stdJson.readUint(_json, "$.faultGameMaxDepth");
+            faultGameSplitDepth = stdJson.readUint(_json, "$.faultGameSplitDepth");
             faultGameMaxDuration = stdJson.readUint(_json, "$.faultGameMaxDuration");
+            faultGameGenesisBlock = stdJson.readUint(_json, "$.faultGameGenesisBlock");
+            faultGameGenesisOutputRoot = stdJson.readBytes32(_json, "$.faultGameGenesisOutputRoot");
         }
     }
 
@@ -105,7 +125,7 @@ contract DeployConfig is Script {
             } catch {
                 try vm.parseJsonUint(_json, "$.l1StartingBlockTag") returns (uint256 tag) {
                     return _getBlockByTag(vm.toString(tag));
-                } catch {}
+                } catch { }
             }
         }
         revert("l1StartingBlockTag must be a bytes32, string or uint256 or cannot fetch l1StartingBlockTag");

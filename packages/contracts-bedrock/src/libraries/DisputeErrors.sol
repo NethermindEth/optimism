@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "./DisputeTypes.sol";
+import "src/libraries/DisputeTypes.sol";
 
 ////////////////////////////////////////////////////////////////
 //                `DisputeGameFactory` Errors                 //
@@ -15,13 +15,26 @@ error NoImplementation(GameType gameType);
 /// @param uuid The UUID of the dispute game that already exists.
 error GameAlreadyExists(Hash uuid);
 
+/// @notice Thrown when the root claim has an unexpected VM status.
+///         Some games can only start with a root-claim with a specific status.
+/// @param rootClaim is the claim that was unexpected.
+error UnexpectedRootClaim(Claim rootClaim);
+
 ////////////////////////////////////////////////////////////////
-//               `DisputeGame_Fault.sol` Errors               //
+//                 `FaultDisputeGame` Errors                  //
 ////////////////////////////////////////////////////////////////
 
-/// @notice Thrown when a supplied bond is too low to cover the
-///         cost of the next possible counter claim.
-error BondTooLow();
+/// @notice Thrown when a dispute game has already been initialized.
+error AlreadyInitialized();
+
+/// @notice Thrown when a supplied bond is too low to cover the cost of the interaction.
+error InsufficientBond();
+
+/// @notice Thrown when the transfer of credit to a recipient account reverts.
+error BondTransferFailed();
+
+/// @notice Thrown when the `extraData` passed to the CWIA proxy is too long for the `FaultDisputeGame`.
+error ExtraDataTooLong();
 
 /// @notice Thrown when a defense against the root claim is attempted.
 error CannotDefendRootClaim();
@@ -54,21 +67,23 @@ error InvalidPrestate();
 /// @notice Thrown when a step is made that computes the expected post state correctly.
 error ValidStep();
 
-////////////////////////////////////////////////////////////////
-//              `AttestationDisputeGame` Errors               //
-////////////////////////////////////////////////////////////////
+/// @notice Thrown when a game is attempted to be initialized with an L1 head that does
+///         not contain the disputed output root.
+error L1HeadTooOld();
 
-/// @notice Thrown when an invalid signature is submitted to `challenge`.
-error InvalidSignature();
+/// @notice Thrown when an invalid local identifier is passed to the `addLocalData` function.
+error InvalidLocalIdent();
 
-/// @notice Thrown when a signature that has already been used to support the
-///         `rootClaim` is submitted to `challenge`.
-error AlreadyChallenged();
+/// @notice Thrown when resolving claims out of order.
+error OutOfOrderResolution();
 
-////////////////////////////////////////////////////////////////
-//                      `Ownable` Errors                      //
-////////////////////////////////////////////////////////////////
+/// @notice Thrown when resolving a claim that has already been resolved.
+error ClaimAlreadyResolved();
 
-/// @notice Thrown when a function that is protected by the `onlyOwner` modifier
-///          is called from an account other than the owner.
-error NotOwner();
+/// @notice Thrown when a parent output root is attempted to be found on a claim that is in
+///         the output root portion of the tree.
+error ClaimAboveSplit();
+
+/// @notice Thrown on deployment if the split depth is greater than or equal to the max
+///         depth of the game.
+error InvalidSplitDepth();

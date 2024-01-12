@@ -2,7 +2,7 @@
 pragma solidity 0.8.15;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { ILegacyMintableERC20 } from "../universal/OptimismMintableERC20.sol";
+import { ILegacyMintableERC20 } from "src/universal/OptimismMintableERC20.sol";
 
 /// @title LegacyMintableERC20
 /// @notice The legacy implementation of the OptimismMintableERC20. This
@@ -29,7 +29,9 @@ contract LegacyMintableERC20 is ILegacyMintableERC20, ERC20 {
         address _l1Token,
         string memory _name,
         string memory _symbol
-    ) ERC20(_name, _symbol) {
+    )
+        ERC20(_name, _symbol)
+    {
         l1Token = _l1Token;
         l2Bridge = _l2Bridge;
     }
@@ -43,9 +45,8 @@ contract LegacyMintableERC20 is ILegacyMintableERC20, ERC20 {
     /// @notice EIP165 implementation.
     function supportsInterface(bytes4 _interfaceId) public pure returns (bool) {
         bytes4 firstSupportedInterface = bytes4(keccak256("supportsInterface(bytes4)")); // ERC165
-        bytes4 secondSupportedInterface = ILegacyMintableERC20.l1Token.selector ^
-            ILegacyMintableERC20.mint.selector ^
-            ILegacyMintableERC20.burn.selector;
+        bytes4 secondSupportedInterface = ILegacyMintableERC20.l1Token.selector ^ ILegacyMintableERC20.mint.selector
+            ^ ILegacyMintableERC20.burn.selector;
         return _interfaceId == firstSupportedInterface || _interfaceId == secondSupportedInterface;
     }
 

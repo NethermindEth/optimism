@@ -5,9 +5,11 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum-optimism/optimism/op-node/testlog"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ethereum/go-ethereum/log"
+
+	"github.com/ethereum-optimism/optimism/op-service/testlog"
 )
 
 type priceBumpTest struct {
@@ -17,13 +19,14 @@ type priceBumpTest struct {
 	newBasefee  int64
 	expectedTip int64
 	expectedFC  int64
+	isBlobTx    bool
 }
 
 func (tc *priceBumpTest) run(t *testing.T) {
 	prevFC := calcGasFeeCap(big.NewInt(tc.prevBasefee), big.NewInt(tc.prevGasTip))
 	lgr := testlog.Logger(t, log.LvlCrit)
 
-	tip, fc := updateFees(big.NewInt(tc.prevGasTip), prevFC, big.NewInt(tc.newGasTip), big.NewInt(tc.newBasefee), lgr)
+	tip, fc := updateFees(big.NewInt(tc.prevGasTip), prevFC, big.NewInt(tc.newGasTip), big.NewInt(tc.newBasefee), tc.isBlobTx, lgr)
 
 	require.Equal(t, tc.expectedTip, tip.Int64(), "tip must be as expected")
 	require.Equal(t, tc.expectedFC, fc.Int64(), "fee cap must be as expected")
@@ -39,8 +42,20 @@ func TestUpdateFees(t *testing.T) {
 		},
 		{
 			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 90, newBasefee: 900,
+			expectedTip: 200, expectedFC: 4200,
+			isBlobTx: true,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
 			newGasTip: 101, newBasefee: 1000,
 			expectedTip: 110, expectedFC: 2310,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 101, newBasefee: 1000,
+			expectedTip: 200, expectedFC: 4200,
+			isBlobTx: true,
 		},
 		{
 			prevGasTip: 100, prevBasefee: 1000,
@@ -49,8 +64,20 @@ func TestUpdateFees(t *testing.T) {
 		},
 		{
 			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 100, newBasefee: 1001,
+			expectedTip: 200, expectedFC: 4200,
+			isBlobTx: true,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
 			newGasTip: 101, newBasefee: 900,
 			expectedTip: 110, expectedFC: 2310,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 101, newBasefee: 900,
+			expectedTip: 200, expectedFC: 4200,
+			isBlobTx: true,
 		},
 		{
 			prevGasTip: 100, prevBasefee: 1000,
@@ -59,8 +86,20 @@ func TestUpdateFees(t *testing.T) {
 		},
 		{
 			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 90, newBasefee: 1010,
+			expectedTip: 200, expectedFC: 4200,
+			isBlobTx: true,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
 			newGasTip: 101, newBasefee: 2000,
 			expectedTip: 110, expectedFC: 4110,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 101, newBasefee: 3000,
+			expectedTip: 200, expectedFC: 6200,
+			isBlobTx: true,
 		},
 		{
 			prevGasTip: 100, prevBasefee: 1000,
@@ -69,8 +108,20 @@ func TestUpdateFees(t *testing.T) {
 		},
 		{
 			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 220, newBasefee: 900,
+			expectedTip: 220, expectedFC: 4200,
+			isBlobTx: true,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
 			newGasTip: 120, newBasefee: 1100,
 			expectedTip: 120, expectedFC: 2320,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 220, newBasefee: 2000,
+			expectedTip: 220, expectedFC: 4220,
+			isBlobTx: true,
 		},
 		{
 			prevGasTip: 100, prevBasefee: 1000,
@@ -79,8 +130,20 @@ func TestUpdateFees(t *testing.T) {
 		},
 		{
 			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 220, newBasefee: 2040,
+			expectedTip: 220, expectedFC: 4300,
+			isBlobTx: true,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
 			newGasTip: 120, newBasefee: 1200,
 			expectedTip: 120, expectedFC: 2520,
+		},
+		{
+			prevGasTip: 100, prevBasefee: 1000,
+			newGasTip: 220, newBasefee: 2100,
+			expectedTip: 220, expectedFC: 4420,
+			isBlobTx: true,
 		},
 	}
 	for i, test := range tests {

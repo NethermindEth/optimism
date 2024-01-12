@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "../../libraries/DisputeTypes.sol";
+import { IInitializable } from "src/dispute/interfaces/IInitializable.sol";
 
-import { IBondManager } from "./IBondManager.sol";
-import { IInitializable } from "./IInitializable.sol";
+import "src/libraries/DisputeTypes.sol";
 
 /// @title IDisputeGame
 /// @notice The generic interface for a DisputeGame contract.
@@ -22,25 +21,20 @@ interface IDisputeGame is IInitializable {
     function status() external view returns (GameStatus status_);
 
     /// @notice Getter for the game type.
-    /// @dev `clones-with-immutable-args` argument #1
     /// @dev The reference impl should be entirely different depending on the type (fault, validity)
     ///      i.e. The game type should indicate the security model.
     /// @return gameType_ The type of proof system being used.
-    function gameType() external pure returns (GameType gameType_);
+    function gameType() external view returns (GameType gameType_);
 
     /// @notice Getter for the root claim.
-    /// @dev `clones-with-immutable-args` argument #2
+    /// @dev `clones-with-immutable-args` argument #1
     /// @return rootClaim_ The root claim of the DisputeGame.
     function rootClaim() external pure returns (Claim rootClaim_);
 
     /// @notice Getter for the extra data.
-    /// @dev `clones-with-immutable-args` argument #3
+    /// @dev `clones-with-immutable-args` argument #2
     /// @return extraData_ Any extra data supplied to the dispute game contract by the creator.
     function extraData() external pure returns (bytes memory extraData_);
-
-    /// @notice Returns the address of the `BondManager` used.
-    /// @return bondManager_ The address of the `BondManager` used.
-    function bondManager() external view returns (IBondManager bondManager_);
 
     /// @notice If all necessary information has been gathered, this function should mark the game
     ///         status as either `CHALLENGER_WINS` or `DEFENDER_WINS` and return the status of
@@ -57,12 +51,5 @@ interface IDisputeGame is IInitializable {
     /// @return gameType_ The type of proof system being used.
     /// @return rootClaim_ The root claim of the DisputeGame.
     /// @return extraData_ Any extra data supplied to the dispute game contract by the creator.
-    function gameData()
-        external
-        pure
-        returns (
-            GameType gameType_,
-            Claim rootClaim_,
-            bytes memory extraData_
-        );
+    function gameData() external view returns (GameType gameType_, Claim rootClaim_, bytes memory extraData_);
 }

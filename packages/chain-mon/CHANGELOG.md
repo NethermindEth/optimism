@@ -1,5 +1,96 @@
 # @eth-optimism/drippie-mon
 
+## 0.5.7
+
+### Patch Changes
+
+- Updated dependencies [[`18becd7e4`](https://github.com/ethereum-optimism/optimism/commit/18becd7e457577c105f6bc03597e069334cb7433)]:
+  - @eth-optimism/sdk@3.1.8
+
+## 0.5.6
+
+### Patch Changes
+
+- Updated dependencies [[`6ec80fd19`](https://github.com/ethereum-optimism/optimism/commit/6ec80fd19d9155b17a0873672fb095d323f6e8fb)]:
+  - @eth-optimism/sdk@3.1.7
+
+## 0.5.5
+
+### Patch Changes
+
+- [#8306](https://github.com/ethereum-optimism/optimism/pull/8306) [`dcb252917`](https://github.com/ethereum-optimism/optimism/commit/dcb25291768ec0f2386486619971d5cd66fbb409) Thanks [@protolambda](https://github.com/protolambda)! - Fixed bug with custom chains not being able to set a custom portal address
+
+## 0.5.4
+
+### Patch Changes
+
+- Updated dependencies [[`dd0e46986`](https://github.com/ethereum-optimism/optimism/commit/dd0e46986f19dcceb304fc48f2bd410685ecd179)]:
+  - @eth-optimism/sdk@3.1.6
+
+## 0.5.3
+
+### Patch Changes
+
+- Updated dependencies [[`2534eabb5`](https://github.com/ethereum-optimism/optimism/commit/2534eabb50afe76f176407f83cc1f1c606e6de69)]:
+  - @eth-optimism/sdk@3.1.5
+
+## 0.5.2
+
+### Patch Changes
+
+- [#7824](https://github.com/ethereum-optimism/optimism/pull/7824) [`98eb885f5`](https://github.com/ethereum-optimism/optimism/commit/98eb885f5003ee5e6b9bbd532a42bba2ad39cb4b) Thanks [@roninjin10](https://github.com/roninjin10)! - Bump node version to LTS node 20.9.0
+
+## 0.5.1
+
+### Patch Changes
+
+- [#7450](https://github.com/ethereum-optimism/optimism/pull/7450) [`ac90e16a7`](https://github.com/ethereum-optimism/optimism/commit/ac90e16a7f85c4f73661ae6023135c3d00421c1e) Thanks [@roninjin10](https://github.com/roninjin10)! - Updated dev dependencies related to testing that is causing audit tooling to report failures
+
+- Updated dependencies [[`ac90e16a7`](https://github.com/ethereum-optimism/optimism/commit/ac90e16a7f85c4f73661ae6023135c3d00421c1e)]:
+  - @eth-optimism/common-ts@0.8.7
+  - @eth-optimism/contracts-bedrock@0.16.2
+  - @eth-optimism/core-utils@0.13.1
+  - @eth-optimism/sdk@3.1.4
+
+## 0.5.0
+
+### Minor Changes
+
+- [#7178](https://github.com/ethereum-optimism/optimism/pull/7178) [`85d1622df`](https://github.com/ethereum-optimism/optimism/commit/85d1622dfdc16f220f7df0be42ba8cbc5dea31c5) Thanks [@tynes](https://github.com/tynes)! - Use node.js v18
+
+### Patch Changes
+
+- Updated dependencies [[`210b2c81d`](https://github.com/ethereum-optimism/optimism/commit/210b2c81dd383bad93480aa876b283d9a0c991c2), [`679207751`](https://github.com/ethereum-optimism/optimism/commit/6792077510fd76553c179d8b8d068262cda18db6), [`2440f5e7a`](https://github.com/ethereum-optimism/optimism/commit/2440f5e7ab6577f2d2e9c8b0c78c014290dde8e7)]:
+  - @eth-optimism/core-utils@0.13.0
+  - @eth-optimism/sdk@3.1.3
+  - @eth-optimism/contracts-bedrock@0.16.1
+  - @eth-optimism/common-ts@0.8.6
+
+## 0.4.4
+
+### Patch Changes
+
+- Updated dependencies [[`9c3a03855`](https://github.com/ethereum-optimism/optimism/commit/9c3a03855dc982f0b4e1d664e83271883536632b), [`33eb63b10`](https://github.com/ethereum-optimism/optimism/commit/33eb63b10559a2267c814eda8129447c72940839)]:
+  - @eth-optimism/sdk@3.1.2
+  - @eth-optimism/common-ts@0.8.5
+
+## 0.4.3
+
+### Patch Changes
+
+- [#6796](https://github.com/ethereum-optimism/optimism/pull/6796) [`a196c63ad`](https://github.com/ethereum-optimism/optimism/commit/a196c63ad67de04c4143e0ccd6fe4dc27fb2833b) Thanks [@roninjin10](https://github.com/roninjin10)! - Upgraded npm dependencies to latest
+
+- Updated dependencies [[`dfa309e34`](https://github.com/ethereum-optimism/optimism/commit/dfa309e3430ebc8790b932554dde120aafc4161e)]:
+  - @eth-optimism/core-utils@0.12.3
+  - @eth-optimism/common-ts@0.8.4
+  - @eth-optimism/sdk@3.1.1
+
+## 0.4.2
+
+### Patch Changes
+
+- [#6469](https://github.com/ethereum-optimism/optimism/pull/6469) [`0c769680e`](https://github.com/ethereum-optimism/optimism/commit/0c769680e44208c086deef2f9c03c37da2b536fe) Thanks [@maurelian](https://github.com/maurelian)! - Update language in fault-mon from batches to outputs
+
 ## 0.4.1
 
 ### Patch Changes

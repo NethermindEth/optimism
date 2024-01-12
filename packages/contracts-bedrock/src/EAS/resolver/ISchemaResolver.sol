@@ -6,7 +6,7 @@ import { Attestation } from "../Common.sol";
 /// @title ISchemaResolver
 /// @notice The interface of an optional schema resolver.
 interface ISchemaResolver {
-    /// @notice Checks if the resolve can be sent ETH.
+    /// @notice Checks if the resolver can be sent ETH.
     /// @return Whether the resolver supports ETH transfers.
     function isPayable() external pure returns (bool);
 
@@ -22,7 +22,10 @@ interface ISchemaResolver {
     function multiAttest(
         Attestation[] calldata attestations,
         uint256[] calldata values
-    ) external payable returns (bool);
+    )
+        external
+        payable
+        returns (bool);
 
     /// @notice Processes an attestation revocation and verifies if it can be revoked.
     /// @param attestation The existing attestation to be revoked.
@@ -36,5 +39,8 @@ interface ISchemaResolver {
     function multiRevoke(
         Attestation[] calldata attestations,
         uint256[] calldata values
-    ) external payable returns (bool);
+    )
+        external
+        payable
+        returns (bool);
 }

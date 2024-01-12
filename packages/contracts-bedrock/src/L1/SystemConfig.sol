@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import {
-    OwnableUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { Semver } from "../universal/Semver.sol";
-import { ResourceMetering } from "./ResourceMetering.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { ISemver } from "src/universal/ISemver.sol";
+import { ResourceMetering } from "src/L1/ResourceMetering.sol";
+import { Storage } from "src/libraries/Storage.sol";
+import { Constants } from "src/libraries/Constants.sol";
 
 /// @title SystemConfig
 /// @notice The SystemConfig contract is used to manage configuration of an Optimism network.
 ///         All configuration is stored on L1 and picked up by L2 as part of the derviation of
 ///         the L2 chain.
-contract SystemConfig is OwnableUpgradeable, Semver {
+contract SystemConfig is OwnableUpgradeable, ISemver {
     /// @notice Enum representing different types of updates.
     /// @custom:value BATCHER              Represents an update to the batcher hash.
     /// @custom:value GAS_CONFIG           Represents an update to txn fee config on L2.
@@ -32,6 +32,10 @@ contract SystemConfig is OwnableUpgradeable, Semver {
     ///         Storing it at this deterministic storage slot allows for decoupling the storage
     ///         layout from the way that `solc` lays out storage. The `op-node` uses a storage
     ///         proof to fetch this value.
+    /// @dev    NOTE: this value will be migrated to another storage slot in a future version.
+    ///         User input should not be placed in storage in this contract until this migration
+    ///         happens. It is unlikely that keccak second preimage resistance will be broken,
+    ///         but it is better to be safe than sorry.
     bytes32 public constant UNSAFE_BLOCK_SIGNER_SLOT = keccak256("systemconfig.unsafeblocksigner");
 
     /// @notice Fixed L2 gas overhead. Used as part of the L2 fee calculation.
@@ -59,8 +63,13 @@ contract SystemConfig is OwnableUpgradeable, Semver {
     /// @param data       Encoded update data.
     event ConfigUpdate(uint256 indexed version, UpdateType indexed updateType, bytes data);
 
-    /// @custom:semver 1.3.1
-    /// @notice Constructs the SystemConfig contract.
+    /// @notice Semantic version.
+    /// @custom:semver 1.11.0
+    string public constant version = "1.11.0";
+
+    /// @notice Constructs the SystemConfig contract. Cannot set
+    ///         the owner to `address(0)` due to the Ownable contract's
+    ///         implementation, so set it to `address(0xdEaD)`
     /// @param _owner             Initial owner of the contract.
     /// @param _overhead          Initial overhead value.
     /// @param _scalar            Initial scalar value.
@@ -76,7 +85,7 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         uint64 _gasLimit,
         address _unsafeBlockSigner,
         ResourceMetering.ResourceConfig memory _config
-    ) Semver(1, 3, 1) {
+    ) {
         initialize({
             _owner: _owner,
             _overhead: _overhead,
@@ -105,13 +114,17 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         uint64 _gasLimit,
         address _unsafeBlockSigner,
         ResourceMetering.ResourceConfig memory _config
-    ) public initializer {
+    )
+        public
+        initializer
+    {
         __Ownable_init();
         transferOwnership(_owner);
-        overhead = _overhead;
-        scalar = _scalar;
-        batcherHash = _batcherHash;
-        gasLimit = _gasLimit;
+
+        // These are set in ascending order of their UpdateTypes.
+        _setBatcherHash(_batcherHash);
+        _setGasConfig({ _overhead: _overhead, _scalar: _scalar });
+        _setGasLimit(_gasLimit);
         _setUnsafeBlockSigner(_unsafeBlockSigner);
         _setResourceConfig(_config);
         require(_gasLimit >= minimumGasLimit(), "SystemConfig: gas limit too low");
@@ -130,39 +143,53 @@ contract SystemConfig is OwnableUpgradeable, Semver {
     /// @notice High level getter for the unsafe block signer address.
     ///         Unsafe blocks can be propagated across the p2p network if they are signed by the
     ///         key corresponding to this address.
-    /// @return Address of the unsafe block signer.
+    /// @return addr_ Address of the unsafe block signer.
     // solhint-disable-next-line ordering
-    function unsafeBlockSigner() external view returns (address) {
-        address addr;
-        bytes32 slot = UNSAFE_BLOCK_SIGNER_SLOT;
-        assembly {
-            addr := sload(slot)
-        }
-        return addr;
+    function unsafeBlockSigner() public view returns (address addr_) {
+        addr_ = Storage.getAddress(UNSAFE_BLOCK_SIGNER_SLOT);
+    }
+
+    /// @notice Updates the unsafe block signer address. Can only be called by the owner.
+    /// @param _unsafeBlockSigner New unsafe block signer address.
+    function setUnsafeBlockSigner(address _unsafeBlockSigner) external onlyOwner {
+        _setUnsafeBlockSigner(_unsafeBlockSigner);
     }
 
     /// @notice Updates the unsafe block signer address.
     /// @param _unsafeBlockSigner New unsafe block signer address.
-    function setUnsafeBlockSigner(address _unsafeBlockSigner) external onlyOwner {
-        _setUnsafeBlockSigner(_unsafeBlockSigner);
+    function _setUnsafeBlockSigner(address _unsafeBlockSigner) internal {
+        Storage.setAddress(UNSAFE_BLOCK_SIGNER_SLOT, _unsafeBlockSigner);
 
         bytes memory data = abi.encode(_unsafeBlockSigner);
         emit ConfigUpdate(VERSION, UpdateType.UNSAFE_BLOCK_SIGNER, data);
     }
 
-    /// @notice Updates the batcher hash.
+    /// @notice Updates the batcher hash. Can only be called by the owner.
     /// @param _batcherHash New batcher hash.
     function setBatcherHash(bytes32 _batcherHash) external onlyOwner {
+        _setBatcherHash(_batcherHash);
+    }
+
+    /// @notice Internal function for updating the batcher hash.
+    /// @param _batcherHash New batcher hash.
+    function _setBatcherHash(bytes32 _batcherHash) internal {
         batcherHash = _batcherHash;
 
         bytes memory data = abi.encode(_batcherHash);
         emit ConfigUpdate(VERSION, UpdateType.BATCHER, data);
     }
 
-    /// @notice Updates gas config.
+    /// @notice Updates gas config. Can only be called by the owner.
     /// @param _overhead New overhead value.
     /// @param _scalar   New scalar value.
     function setGasConfig(uint256 _overhead, uint256 _scalar) external onlyOwner {
+        _setGasConfig(_overhead, _scalar);
+    }
+
+    /// @notice Internal function for updating the gas config.
+    /// @param _overhead New overhead value.
+    /// @param _scalar   New scalar value.
+    function _setGasConfig(uint256 _overhead, uint256 _scalar) internal {
         overhead = _overhead;
         scalar = _scalar;
 
@@ -170,25 +197,20 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         emit ConfigUpdate(VERSION, UpdateType.GAS_CONFIG, data);
     }
 
-    /// @notice Updates the L2 gas limit.
+    /// @notice Updates the L2 gas limit. Can only be called by the owner.
     /// @param _gasLimit New gas limit.
     function setGasLimit(uint64 _gasLimit) external onlyOwner {
+        _setGasLimit(_gasLimit);
+    }
+
+    /// @notice Internal function for updating the L2 gas limit.
+    /// @param _gasLimit New gas limit.
+    function _setGasLimit(uint64 _gasLimit) internal {
         require(_gasLimit >= minimumGasLimit(), "SystemConfig: gas limit too low");
         gasLimit = _gasLimit;
 
         bytes memory data = abi.encode(_gasLimit);
         emit ConfigUpdate(VERSION, UpdateType.GAS_LIMIT, data);
-    }
-
-    /// @notice Low level setter for the unsafe block signer address.
-    ///         This function exists to deduplicate code around storing the unsafeBlockSigner
-    ///         address in storage.
-    /// @param _unsafeBlockSigner New unsafeBlockSigner value.
-    function _setUnsafeBlockSigner(address _unsafeBlockSigner) internal {
-        bytes32 slot = UNSAFE_BLOCK_SIGNER_SLOT;
-        assembly {
-            sstore(slot, _unsafeBlockSigner)
-        }
     }
 
     /// @notice A getter for the resource config.
@@ -212,29 +234,19 @@ contract SystemConfig is OwnableUpgradeable, Semver {
     function _setResourceConfig(ResourceMetering.ResourceConfig memory _config) internal {
         // Min base fee must be less than or equal to max base fee.
         require(
-            _config.minimumBaseFee <= _config.maximumBaseFee,
-            "SystemConfig: min base fee must be less than max base"
+            _config.minimumBaseFee <= _config.maximumBaseFee, "SystemConfig: min base fee must be less than max base"
         );
         // Base fee change denominator must be greater than 1.
-        require(
-            _config.baseFeeMaxChangeDenominator > 1,
-            "SystemConfig: denominator must be larger than 1"
-        );
+        require(_config.baseFeeMaxChangeDenominator > 1, "SystemConfig: denominator must be larger than 1");
         // Max resource limit plus system tx gas must be less than or equal to the L2 gas limit.
         // The gas limit must be increased before these values can be increased.
-        require(
-            _config.maxResourceLimit + _config.systemTxMaxGas <= gasLimit,
-            "SystemConfig: gas limit too low"
-        );
+        require(_config.maxResourceLimit + _config.systemTxMaxGas <= gasLimit, "SystemConfig: gas limit too low");
         // Elasticity multiplier must be greater than 0.
-        require(
-            _config.elasticityMultiplier > 0,
-            "SystemConfig: elasticity multiplier cannot be 0"
-        );
+        require(_config.elasticityMultiplier > 0, "SystemConfig: elasticity multiplier cannot be 0");
         // No precision loss when computing target resource limit.
         require(
-            ((_config.maxResourceLimit / _config.elasticityMultiplier) *
-                _config.elasticityMultiplier) == _config.maxResourceLimit,
+            ((_config.maxResourceLimit / _config.elasticityMultiplier) * _config.elasticityMultiplier)
+                == _config.maxResourceLimit,
             "SystemConfig: precision loss with target resource limit"
         );
 

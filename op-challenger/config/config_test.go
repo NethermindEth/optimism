@@ -1,38 +1,37 @@
 package config
 
 import (
+	"runtime"
 	"testing"
 
-	"github.com/ethereum-optimism/optimism/op-service/txmgr"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ethereum-optimism/optimism/op-service/txmgr"
 )
 
 var (
 	validL1EthRpc              = "http://localhost:8545"
-	validGameAddress           = common.HexToAddress("0x7bdd3b028C4796eF0EAf07d11394d0d9d8c24139")
-	validAlphabetTrace         = "abcdefgh"
+	validGameFactoryAddress    = common.Address{0x23}
 	validCannonBin             = "./bin/cannon"
 	validCannonOpProgramBin    = "./bin/op-program"
+	validCannonNetwork         = "mainnet"
 	validCannonAbsolutPreState = "pre.json"
-	validCannonDatadir         = "/tmp/cannon"
+	validDatadir               = "/tmp/data"
 	validCannonL2              = "http://localhost:9545"
-	agreeWithProposedOutput    = true
-	gameDepth                  = 4
+	validRollupRpc             = "http://localhost:8555"
 )
 
 func validConfig(traceType TraceType) Config {
-	cfg := NewConfig(validL1EthRpc, validGameAddress, traceType, agreeWithProposedOutput, gameDepth)
-	switch traceType {
-	case TraceTypeAlphabet:
-		cfg.AlphabetTrace = validAlphabetTrace
-	case TraceTypeCannon:
+	cfg := NewConfig(validGameFactoryAddress, validL1EthRpc, validDatadir, traceType)
+	if traceType == TraceTypeCannon {
 		cfg.CannonBin = validCannonBin
 		cfg.CannonServer = validCannonOpProgramBin
 		cfg.CannonAbsolutePreState = validCannonAbsolutPreState
-		cfg.CannonDatadir = validCannonDatadir
 		cfg.CannonL2 = validCannonL2
+		cfg.CannonNetwork = validCannonNetwork
 	}
+	cfg.RollupRpc = validRollupRpc
 	return cfg
 }
 
@@ -61,16 +60,16 @@ func TestL1EthRpcRequired(t *testing.T) {
 	require.ErrorIs(t, config.Check(), ErrMissingL1EthRPC)
 }
 
-func TestGameAddressRequired(t *testing.T) {
+func TestGameFactoryAddressRequired(t *testing.T) {
 	config := validConfig(TraceTypeCannon)
-	config.GameAddress = common.Address{}
-	require.ErrorIs(t, config.Check(), ErrMissingGameAddress)
+	config.GameFactoryAddress = common.Address{}
+	require.ErrorIs(t, config.Check(), ErrMissingGameFactoryAddress)
 }
 
-func TestAlphabetTraceRequired(t *testing.T) {
-	config := validConfig(TraceTypeAlphabet)
-	config.AlphabetTrace = ""
-	require.ErrorIs(t, config.Check(), ErrMissingAlphabetTrace)
+func TestGameAllowlistNotRequired(t *testing.T) {
+	config := validConfig(TraceTypeCannon)
+	config.GameAllowlist = []common.Address{}
+	require.NoError(t, config.Check())
 }
 
 func TestCannonBinRequired(t *testing.T) {
@@ -91,10 +90,42 @@ func TestCannonAbsolutePreStateRequired(t *testing.T) {
 	require.ErrorIs(t, config.Check(), ErrMissingCannonAbsolutePreState)
 }
 
-func TestCannonDatadirRequired(t *testing.T) {
+func TestDatadirRequired(t *testing.T) {
+	config := validConfig(TraceTypeAlphabet)
+	config.Datadir = ""
+	require.ErrorIs(t, config.Check(), ErrMissingDatadir)
+}
+
+func TestMaxConcurrency(t *testing.T) {
+	t.Run("Required", func(t *testing.T) {
+		config := validConfig(TraceTypeAlphabet)
+		config.MaxConcurrency = 0
+		require.ErrorIs(t, config.Check(), ErrMaxConcurrencyZero)
+	})
+
+	t.Run("DefaultToNumberOfCPUs", func(t *testing.T) {
+		config := validConfig(TraceTypeAlphabet)
+		require.EqualValues(t, runtime.NumCPU(), config.MaxConcurrency)
+	})
+}
+
+func TestHttpPollInterval(t *testing.T) {
+	t.Run("Default", func(t *testing.T) {
+		config := validConfig(TraceTypeAlphabet)
+		require.EqualValues(t, DefaultPollInterval, config.PollInterval)
+	})
+}
+
+func TestRollupRpcRequired_Cannon(t *testing.T) {
 	config := validConfig(TraceTypeCannon)
-	config.CannonDatadir = ""
-	require.ErrorIs(t, config.Check(), ErrMissingCannonDatadir)
+	config.RollupRpc = ""
+	require.ErrorIs(t, config.Check(), ErrMissingRollupRpc)
+}
+
+func TestRollupRpcRequired_Alphabet(t *testing.T) {
+	config := validConfig(TraceTypeAlphabet)
+	config.RollupRpc = ""
+	require.ErrorIs(t, config.Check(), ErrMissingRollupRpc)
 }
 
 func TestCannonL2Required(t *testing.T) {
@@ -109,4 +140,67 @@ func TestCannonSnapshotFreq(t *testing.T) {
 		cfg.CannonSnapshotFreq = 0
 		require.ErrorIs(t, cfg.Check(), ErrMissingCannonSnapshotFreq)
 	})
+}
+
+func TestCannonInfoFreq(t *testing.T) {
+	t.Run("MustNotBeZero", func(t *testing.T) {
+		cfg := validConfig(TraceTypeCannon)
+		cfg.CannonInfoFreq = 0
+		require.ErrorIs(t, cfg.Check(), ErrMissingCannonInfoFreq)
+	})
+}
+
+func TestCannonNetworkOrRollupConfigRequired(t *testing.T) {
+	cfg := validConfig(TraceTypeCannon)
+	cfg.CannonNetwork = ""
+	cfg.CannonRollupConfigPath = ""
+	cfg.CannonL2GenesisPath = "genesis.json"
+	require.ErrorIs(t, cfg.Check(), ErrMissingCannonRollupConfig)
+}
+
+func TestCannonNetworkOrL2GenesisRequired(t *testing.T) {
+	cfg := validConfig(TraceTypeCannon)
+	cfg.CannonNetwork = ""
+	cfg.CannonRollupConfigPath = "foo.json"
+	cfg.CannonL2GenesisPath = ""
+	require.ErrorIs(t, cfg.Check(), ErrMissingCannonL2Genesis)
+}
+
+func TestMustNotSpecifyNetworkAndRollup(t *testing.T) {
+	cfg := validConfig(TraceTypeCannon)
+	cfg.CannonNetwork = validCannonNetwork
+	cfg.CannonRollupConfigPath = "foo.json"
+	cfg.CannonL2GenesisPath = ""
+	require.ErrorIs(t, cfg.Check(), ErrCannonNetworkAndRollupConfig)
+}
+
+func TestMustNotSpecifyNetworkAndL2Genesis(t *testing.T) {
+	cfg := validConfig(TraceTypeCannon)
+	cfg.CannonNetwork = validCannonNetwork
+	cfg.CannonRollupConfigPath = ""
+	cfg.CannonL2GenesisPath = "foo.json"
+	require.ErrorIs(t, cfg.Check(), ErrCannonNetworkAndL2Genesis)
+}
+
+func TestNetworkMustBeValid(t *testing.T) {
+	cfg := validConfig(TraceTypeCannon)
+	cfg.CannonNetwork = "unknown"
+	require.ErrorIs(t, cfg.Check(), ErrCannonNetworkUnknown)
+}
+
+func TestRequireConfigForMultipleTraceTypes(t *testing.T) {
+	cfg := validConfig(TraceTypeCannon)
+	cfg.TraceTypes = []TraceType{TraceTypeCannon, TraceTypeAlphabet}
+	// Set all required options and check its valid
+	cfg.RollupRpc = validRollupRpc
+	require.NoError(t, cfg.Check())
+
+	// Require cannon specific args
+	cfg.CannonL2 = ""
+	require.ErrorIs(t, cfg.Check(), ErrMissingCannonL2)
+	cfg.CannonL2 = validCannonL2
+
+	// Require output cannon specific args
+	cfg.RollupRpc = ""
+	require.ErrorIs(t, cfg.Check(), ErrMissingRollupRpc)
 }

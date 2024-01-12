@@ -8,8 +8,6 @@
 - [The Bond Problem](#the-bond-problem)
   - [Simple Bond](#simple-bond)
   - [Variable Bond](#variable-bond)
-- [Contract Interface](#contract-interface)
-- [Bond Manager Implementation](#bond-manager-implementation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -20,14 +18,14 @@ be attached to an output proposal. In this case, the bond will be paid in ether.
 
 By requiring a bond to be posted with an output proposal, spam and invalid outputs
 are disincentivized. Explicitly, if invalid outputs are proposed, challenge agents
-can delete the invalid output via a [dispute-game](./dispute-game.md) and seize the
+can delete the invalid output via a [dispute-game](./dispute-game-interface.md) and seize the
 proposer's bond. So, posting invalid outputs is directly disincentivized in this way
 since the proposer would lose their bond if the challenge agents seize it.
 
 Concretely, outputs will be permissionlessly proposed to the `L2OutputOracle` contract.
 When submitting an output proposal, the ether value is sent as the bond. This bond is
 then held by a bond manager contract. The bond manager contract is responsible for
-both the [dispute-games](./dispute-game.md) and the `L2OutputOracle` (further detailed
+both the [dispute-games](./dispute-game-interface.md) and the `L2OutputOracle` (further detailed
 in [proposals](./proposals.md)).
 
 The bond manager will need to handle bond logic for a variety of different
@@ -75,73 +73,8 @@ expensive to keep the settlement layer base fee this high.
 ### Variable Bond
 
 Better bond heuristics can be used to establish a bond price that accounts for
-the time-weighted gas price. One instance of this called _Varable Bonds_ use a
+the time-weighted gas price. One instance of this called _Variable Bonds_ use a
 separate oracle contract, `GasPriceFluctuationTracker`, that tracks gas fluctuations
 within a pre-determined bounds. This replaces the ideal solution of tracking
 challenge costs over all L1 blocks, but provides a reasonable bounds. The initial
 actors posting this bond are responsible for funding this contract.
-
-## Contract Interface
-
-Below is a minimal interface for the bond manager contract.
-
-```solidity
-/**
- * @title IBondManager
- * @notice The IBondManager is an interface for a contract that handles bond management.
- */
-interface IBondManager {
-  /**
-    * @notice Post a bond with a given id and owner.
-    * @dev This function will revert if the provided bondId is already in use.
-    * @param bondId is the id of the bond.
-    * @param owner is the address that owns the bond.
-    * @param minClaimHold is the minimum amount of time the owner must wait before reclaiming their bond.
-    */
-  function post(bytes32 bondId, address owner, uint64 minClaimHold) external payable;
-
-  /**
-    * @notice Seizes the bond with the given id.
-    * @dev This function will revert if there is no bond at the given id.
-    * @param bondId is the id of the bond.
-    */
-  function seize(bytes32 bondId) external;
-
-  /**
-    * @notice Seizes the bond with the given id and distributes it to recipients.
-    * @dev This function will revert if there is no bond at the given id.
-    * @param bondId is the id of the bond.
-    * @param recipients is a set of addresses to split the bond amongst.
-    */
-  function seizeAndSplit(bytes32 bondId, address[] calldata recipients) external;
-
-  /**
-    * @notice Reclaims the bond of the bond owner.
-    * @dev This function will revert if there is no bond at the given id.
-    * @param bondId is the id of the bond.
-    */
-  function reclaim(bytes32 bondId) external;
-}
-```
-
-**Note**
-
-The `bytes32 bondId` can be constructed using the `keccak256` hash of a given identifier.
-For example, the `L2OutputOracle` can create a `bondId` by taking the `keccak256` hash of
-the `l2BlockNumber` associated with the output proposal since there will only ever be one
-outstanding output proposal for a given `l2BlockNumber`.
-This also avoids the issue where an output proposer can have multiple bonds if bonds were
-instead tied to the address of the output proposer.
-
-## Bond Manager Implementation
-
-Initially, the bond manager will only be used by the `L2OutputOracle` contract
-for output proposals in the attestation [dispute game](./dispute-game.md). Since
-the attestation dispute game has a permissioned set of attestors, there are no
-intermediate steps in the game that would require bonds.
-
-In the future however, Fault-based dispute games will be introduced and will
-require bond management. In addition to the bond posted by the output proposer,
-bonds will be posted at each step of the dispute game. Once the game is resolved,
-bonds are dispersed to either the output challengers or defenders
-(including the proposer).

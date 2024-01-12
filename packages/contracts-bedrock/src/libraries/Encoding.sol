@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { Types } from "./Types.sol";
-import { Hashing } from "./Hashing.sol";
-import { RLPWriter } from "./rlp/RLPWriter.sol";
+import { Types } from "src/libraries/Types.sol";
+import { Hashing } from "src/libraries/Hashing.sol";
+import { RLPWriter } from "src/libraries/rlp/RLPWriter.sol";
 
 /// @title Encoding
 /// @notice Encoding handles Optimism's various different encoding schemes.
@@ -13,11 +13,7 @@ library Encoding {
     ///         transaction is prefixed with 0x7e to identify its EIP-2718 type.
     /// @param _tx User deposit transaction to encode.
     /// @return RLP encoded L2 deposit transaction.
-    function encodeDepositTransaction(Types.UserDepositTransaction memory _tx)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function encodeDepositTransaction(Types.UserDepositTransaction memory _tx) internal pure returns (bytes memory) {
         bytes32 source = Hashing.hashDepositSource(_tx.l1BlockHash, _tx.logIndex);
         bytes[] memory raw = new bytes[](8);
         raw[0] = RLPWriter.writeBytes(abi.encodePacked(source));
@@ -47,7 +43,11 @@ library Encoding {
         uint256 _value,
         uint256 _gasLimit,
         bytes memory _data
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         (, uint16 version) = decodeVersionedNonce(_nonce);
         if (version == 0) {
             return encodeCrossDomainMessageV0(_target, _sender, _data, _nonce);
@@ -69,15 +69,12 @@ library Encoding {
         address _sender,
         bytes memory _data,
         uint256 _nonce
-    ) internal pure returns (bytes memory) {
-        return
-            abi.encodeWithSignature(
-                "relayMessage(address,address,bytes,uint256)",
-                _target,
-                _sender,
-                _data,
-                _nonce
-            );
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodeWithSignature("relayMessage(address,address,bytes,uint256)", _target, _sender, _data, _nonce);
     }
 
     /// @notice Encodes a cross domain message based on the V1 (current) encoding.
@@ -95,17 +92,20 @@ library Encoding {
         uint256 _value,
         uint256 _gasLimit,
         bytes memory _data
-    ) internal pure returns (bytes memory) {
-        return
-            abi.encodeWithSignature(
-                "relayMessage(uint256,address,address,uint256,uint256,bytes)",
-                _nonce,
-                _sender,
-                _target,
-                _value,
-                _gasLimit,
-                _data
-            );
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodeWithSignature(
+            "relayMessage(uint256,address,address,uint256,uint256,bytes)",
+            _nonce,
+            _sender,
+            _target,
+            _value,
+            _gasLimit,
+            _data
+        );
     }
 
     /// @notice Adds a version number into the first two bytes of a message nonce.
@@ -132,5 +132,45 @@ library Encoding {
             version := shr(240, _nonce)
         }
         return (nonce, version);
+    }
+
+    /// @notice Returns an appropriately encoded call to L1Block.setL1BlockValuesEcotone
+    /// @param basefeeScalar       L1 basefee Scalar
+    /// @param blobBasefeeScalar   L1 blob basefee Scalar
+    /// @param sequenceNumber      Number of L2 blocks since epoch start.
+    /// @param timestamp           L1 timestamp.
+    /// @param number              L1 blocknumber.
+    /// @param basefee             L1 basefee.
+    /// @param blobBasefee         L1 blob basefee.
+    /// @param hash                L1 blockhash.
+    /// @param batcherHash         Versioned hash to authenticate batcher by.
+    function encodeSetL1BlockValuesEcotone(
+        uint32 basefeeScalar,
+        uint32 blobBasefeeScalar,
+        uint64 sequenceNumber,
+        uint64 timestamp,
+        uint64 number,
+        uint256 basefee,
+        uint256 blobBasefee,
+        bytes32 hash,
+        bytes32 batcherHash
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes4 functionSignature = bytes4(keccak256("setL1BlockValuesEcotone()"));
+        return abi.encodePacked(
+            functionSignature,
+            basefeeScalar,
+            blobBasefeeScalar,
+            sequenceNumber,
+            timestamp,
+            number,
+            basefee,
+            blobBasefee,
+            hash,
+            batcherHash
+        );
     }
 }

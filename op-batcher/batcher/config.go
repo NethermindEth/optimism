@@ -1,62 +1,30 @@
 package batcher
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ethereum-optimism/optimism/op-batcher/compressor"
 	"github.com/ethereum-optimism/optimism/op-batcher/flags"
-	"github.com/ethereum-optimism/optimism/op-batcher/metrics"
-	"github.com/ethereum-optimism/optimism/op-batcher/rpc"
-	"github.com/ethereum-optimism/optimism/op-node/rollup"
-	"github.com/ethereum-optimism/optimism/op-node/sources"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
-	oppprof "github.com/ethereum-optimism/optimism/op-service/pprof"
+	"github.com/ethereum-optimism/optimism/op-service/oppprof"
+	oprpc "github.com/ethereum-optimism/optimism/op-service/rpc"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
 )
-
-type Config struct {
-	log        log.Logger
-	metr       metrics.Metricer
-	L1Client   *ethclient.Client
-	L2Client   *ethclient.Client
-	RollupNode *sources.RollupClient
-	TxManager  txmgr.TxManager
-
-	NetworkTimeout         time.Duration
-	PollInterval           time.Duration
-	MaxPendingTransactions uint64
-
-	// RollupConfig is queried at startup
-	Rollup *rollup.Config
-
-	// Channel builder parameters
-	Channel ChannelConfig
-}
-
-// Check ensures that the [Config] is valid.
-func (c *Config) Check() error {
-	if err := c.Rollup.Check(); err != nil {
-		return err
-	}
-	if err := c.Channel.Check(); err != nil {
-		return err
-	}
-	return nil
-}
 
 type CLIConfig struct {
 	// L1EthRpc is the HTTP provider URL for L1.
 	L1EthRpc string
 
-	// L2EthRpc is the HTTP provider URL for the L2 execution engine.
+	// L2EthRpc is the HTTP provider URL for the L2 execution engine. A comma-separated list enables the active L2 provider. Such a list needs to match the number of RollupRpcs provided.
 	L2EthRpc string
 
-	// RollupRpc is the HTTP provider URL for the L2 rollup node.
+	// RollupRpc is the HTTP provider URL for the L2 rollup node. A comma-separated list enables the active L2 provider. Such a list needs to match the number of L2EthRpcs provided.
 	RollupRpc string
 
 	// MaxChannelDuration is the maximum duration (in #L1-blocks) to keep a
@@ -87,20 +55,47 @@ type CLIConfig struct {
 
 	Stopped bool
 
+	BatchType uint
+
+	// DataAvailabilityType is one of the values defined in op-batcher/flags/flags.go and dictates
+	// the data availability type to use for poting batches, e.g. blobs vs calldata.
+	DataAvailabilityType string
+
 	TxMgrConfig      txmgr.CLIConfig
-	RPCConfig        rpc.CLIConfig
 	LogConfig        oplog.CLIConfig
 	MetricsConfig    opmetrics.CLIConfig
 	PprofConfig      oppprof.CLIConfig
 	CompressorConfig compressor.CLIConfig
+	RPC              oprpc.CLIConfig
 }
 
-func (c CLIConfig) Check() error {
-	if err := c.RPCConfig.Check(); err != nil {
-		return err
+func (c *CLIConfig) Check() error {
+	if c.L1EthRpc == "" {
+		return errors.New("empty L1 RPC URL")
 	}
-	if err := c.LogConfig.Check(); err != nil {
-		return err
+	if c.L2EthRpc == "" {
+		return errors.New("empty L2 RPC URL")
+	}
+	if c.RollupRpc == "" {
+		return errors.New("empty rollup RPC URL")
+	}
+	if strings.Count(c.RollupRpc, ",") != strings.Count(c.L2EthRpc, ",") {
+		return errors.New("number of rollup and eth URLs must match")
+	}
+	if c.PollInterval == 0 {
+		return errors.New("must set PollInterval")
+	}
+	if c.MaxL1TxSize <= 1 {
+		return errors.New("MaxL1TxSize must be greater than 0")
+	}
+	if c.BatchType > 1 {
+		return fmt.Errorf("unknown batch type: %v", c.BatchType)
+	}
+	switch c.DataAvailabilityType {
+	case flags.CalldataType:
+	case flags.BlobsType:
+	default:
+		return fmt.Errorf("unknown data availability type: %v", c.DataAvailabilityType)
 	}
 	if err := c.MetricsConfig.Check(); err != nil {
 		return err
@@ -111,12 +106,15 @@ func (c CLIConfig) Check() error {
 	if err := c.TxMgrConfig.Check(); err != nil {
 		return err
 	}
+	if err := c.RPC.Check(); err != nil {
+		return err
+	}
 	return nil
 }
 
 // NewConfig parses the Config from the provided flags or environment variables.
-func NewConfig(ctx *cli.Context) CLIConfig {
-	return CLIConfig{
+func NewConfig(ctx *cli.Context) *CLIConfig {
+	return &CLIConfig{
 		/* Required Flags */
 		L1EthRpc:        ctx.String(flags.L1EthRpcFlag.Name),
 		L2EthRpc:        ctx.String(flags.L2EthRpcFlag.Name),
@@ -129,11 +127,13 @@ func NewConfig(ctx *cli.Context) CLIConfig {
 		MaxChannelDuration:     ctx.Uint64(flags.MaxChannelDurationFlag.Name),
 		MaxL1TxSize:            ctx.Uint64(flags.MaxL1TxSizeBytesFlag.Name),
 		Stopped:                ctx.Bool(flags.StoppedFlag.Name),
+		BatchType:              ctx.Uint(flags.BatchTypeFlag.Name),
+		DataAvailabilityType:   ctx.String(flags.DataAvailabilityTypeFlag.Name),
 		TxMgrConfig:            txmgr.ReadCLIConfig(ctx),
-		RPCConfig:              rpc.ReadCLIConfig(ctx),
 		LogConfig:              oplog.ReadCLIConfig(ctx),
 		MetricsConfig:          opmetrics.ReadCLIConfig(ctx),
 		PprofConfig:            oppprof.ReadCLIConfig(ctx),
 		CompressorConfig:       compressor.ReadCLIConfig(ctx),
+		RPC:                    oprpc.ReadCLIConfig(ctx),
 	}
 }

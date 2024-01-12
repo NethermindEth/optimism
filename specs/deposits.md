@@ -30,10 +30,12 @@ with the authorization and validation conditions on L2.
     - [Nonce Handling](#nonce-handling)
 - [Deposit Receipt](#deposit-receipt)
 - [L1 Attributes Deposited Transaction](#l1-attributes-deposited-transaction)
+  - [L1 Attributes Deposited Transaction Calldata](#l1-attributes-deposited-transaction-calldata)
 - [Special Accounts on L2](#special-accounts-on-l2)
   - [L1 Attributes Depositor Account](#l1-attributes-depositor-account)
   - [L1 Attributes Predeployed Contract](#l1-attributes-predeployed-contract)
     - [L1 Attributes Predeployed Contract: Reference Implementation](#l1-attributes-predeployed-contract-reference-implementation)
+    - [Ecotone L1Block upgrade](#ecotone-l1block-upgrade)
 - [User-Deposited Transactions](#user-deposited-transactions)
   - [Deposit Contract](#deposit-contract)
     - [Address Aliasing](#address-aliasing)
@@ -103,6 +105,8 @@ The `sourceHash` of a deposit transaction is computed based on the origin:
   And `seqNumber = l2BlockNum - l2EpochStartBlockNum`,
   where `l2BlockNum` is the L2 block number of the inclusion of the deposit tx in L2,
   and `l2EpochStartBlockNum` is the L2 block number of the first L2 block in the epoch.
+- Upgrade-deposited: `keccak256(bytes32(uint256(2)), keccak256(intent))`.
+  Where `intent` is a UTF-8 byte string, identifying the upgrade intent.
 
 Without a `sourceHash` in a deposit, two different deposited transactions could have the same exact hash.
 
@@ -149,7 +153,7 @@ The deposit transaction is processed exactly like a type-3 (EIP-1559) transactio
 - No fee fields are verified: the deposit does not have any, as it pays for gas on L1.
 - No `nonce` field is verified: the deposit does not have any, it's uniquely identified by its `sourceHash`.
 - No access-list is processed: the deposit has no access-list, and it is thus processed as if the access-list is empty.
-- No check if `from` is an Externally Owner Account (EOA): the deposit is ensured not to be an EAO through L1 address
+- No check if `from` is an Externally Owner Account (EOA): the deposit is ensured not to be an EOA through L1 address
   masking, this may change in future L1 contract-deployments to e.g. enable an account-abstraction like mechanism.
 - Before the Regolith upgrade:
   - The execution output states a non-standard gas usage:
@@ -160,8 +164,9 @@ The deposit transaction is processed exactly like a type-3 (EIP-1559) transactio
 - No L1-cost fee is charged, as deposits are derived from L1 and do not have to be submitted as data back to it.
 - No base fee is charged. The total base fee accounting does not change.
 
-Note that this includes contract-deployment behavior like with regular transactions,
-and gas metering is the same (with the exception of fee related changes above), including metering of intrinsic gas.
+Note that this includes contract-deployment behavior like with regular transactions, and gas
+metering is the same (with the exception of fee related changes above), including metering of
+intrinsic gas.
 
 Any non-EVM state-transition error emitted by the EVM execution is processed in a special way:
 
@@ -213,8 +218,9 @@ The RLP-encoded consensus-enforced fields are:
 - `bloom` (standard): bloom filter of the transaction logs.
 - `logs` (standard): log events emitted by the EVM processing.
 - `depositNonce` (unique extension): Optional field. The deposit transaction persists the nonce used during execution.
-  - Before Regolith, this `depositNonce` field must always be omitted.
-  - With Regolith, this `depositNonce` field must always be included.
+- `depositNonceVersion` (unique extension): Optional field. The value must be 1 if the field is present
+  - Before Canyon, these `depositNonce` & `depositNonceVersion` fields must always be omitted.
+  - With Canyon, these `depositNonce` & `depositNonceVersion` fields must always be included.
 
 Starting with Regolith, the receipt API responses utilize the receipt changes for more accurate response data:
 
@@ -240,19 +246,41 @@ This transaction MUST have the following values:
    contract][predeploy]).
 3. `mint` is `0`
 4. `value` is `0`
-5. `gasLimit` is set to 150,000,000.
-6. `isSystemTx` is set to `true`.
-7. `data` is an [ABI] encoded call to the [L1 attributes predeployed contract][predeploy]'s
-   `setL1BlockValues()` function with correct values associated with the corresponding L1 block (cf.
-   [reference implementation][l1-attr-ref-implem]).
+5. `gasLimit` is set to 150,000,000 prior to the Regolith upgrade, and 1,000,000 after.
+6. `isSystemTx` is set to `true` prior to the Regolith upgrade, and `false` after.
+7. `data` is an encoded call to the [L1 attributes predeployed contract][predeploy] that
+depends on the upgrades that are active (see below).
 
-If the Regolith upgrade is active, some fields are overridden:
+This system-initiated transaction for L1 attributes is not charged any ETH for its allocated
+`gasLimit`, as it is considered part of state-transition processing.
 
-1. `gasLimit` is set to 1,000,000
-2. `isSystemTx` is set to `false`
+### L1 Attributes Deposited Transaction Calldata
 
-This system-initiated transaction for L1 attributes is not charged any ETH for its allocated `gasLimit`,
-as it is effectively part of the state-transition processing.
+Prior to the Ecotone upgrade, the `data` field of the L1 attributes deposited transaction is an
+[ABI][ABI] encoded call to the `setL1BlockValues()` function with correct values associated with
+the corresponding L1 block (cf.  [reference implementation][l1-attr-ref-implem]).
+
+If the Ecotone upgrade is active, then `data` is instead a call to the `setL1BlockValuesEcotone()`
+function, where the input args are no longer ABI encoded function parameters, but are instead
+packed into 5 32-byte aligned segments (starting after the function selector). Each unsigned
+integer argument is encoded as big-endian using a number of bytes corresponding to the underlying
+type. The overall calldata layout is as follows:
+
+| Input arg         | Type        | Calldata bytes | Segment |
+| ----------------- | ----------- | -------------- | --------|
+| {0x440a5e20}      |             | 0-3            | n/a     |
+| basefeeScalar     | uint32      | 4-7            | 1       |
+| blobBasefeeScalar | uint32      | 8-11           |         |
+| sequenceNumber    | uint64      | 12-19          |         |
+| l1BlockTimestamp  | uint64      | 20-27          |         |
+| l1BlockNumber     | uint64      | 28-35          |         |
+| basefee           | uint256     | 36-67          | 2       |
+| blobBasefee       | uint256     | 68-99          | 3       |
+| l1BlockHash       | bytes32     | 100-131        | 4       |
+| batcherHash       | bytes32     | 132-163        | 5       |
+
+Total calldata length must be exactly 164 bytes, implying the sixth and final segment is only
+partially filled.
 
 ## Special Accounts on L2
 
@@ -291,6 +319,13 @@ The predeploy stores the following values:
   - `batcherHash` (`bytes32`): A versioned commitment to the batch-submitter(s) currently operating.
   - `overhead` (`uint256`): The L1 fee overhead to apply to L1 cost computation of transactions in this L2 block.
   - `scalar` (`uint256`): The L1 fee scalar to apply to L1 cost computation of transactions in this L2 block.
+- With the Ecotone upgrade, the predeploy additionally stores:
+  - `blobBasefee` (`uint256`)
+  - `baseFeeScalar` (`uint32`): system configurable to scale the `basefee` in the Ecotone l1 cost computation
+  - `blobBasefeeScalar` (`uint32`): system configurable to scale the `blobBasefee` in the Ecotone l1 cost computation
+
+Following the Ecotone upgrade, `overhead` and `scalar` are frozen at the values they had on the
+block immediately prior to the fork.
 
 The contract implements an authorization scheme, such that it only accepts state-changing calls from
 the [depositor account][depositor-account].
@@ -306,11 +341,24 @@ The contract has the following solidity interface, and can be interacted with ac
 
 A reference implementation of the L1 Attributes predeploy contract can be found in [L1Block.sol].
 
-[L1Block.sol]: ../packages/contracts-bedrock/contracts/L2/L1Block.sol
+[L1Block.sol]: ../packages/contracts-bedrock/src/L2/L1Block.sol
 
-After running `pnpm build` in the `packages/contracts` directory, the bytecode to add to the genesis
-file will be located in the `deployedBytecode` field of the build artifacts file at
-`/packages/contracts/artifacts/contracts/L2/L1Block.sol/L1Block.json`.
+After running `pnpm build` in the `packages/contracts-bedrock` directory, the bytecode to add to
+the genesis file will be located in the `deployedBytecode` field of the build artifacts file at
+`/packages/contracts-bedrock/forge-artifacts/L1Block.sol/L1Block.json`.
+
+#### Ecotone L1Block upgrade
+
+The L1 Attributes Predeployed contract, `L1Block.sol`, is upgraded as part of the Ecotone upgrade.
+The version is incremented to `1.2.0` and several new storage slots are used for:
+
+- `blobBasefee` (`uint256`): The L1 basefee for blob transactions.
+- `blobBasefeeScalar` (`uint256`): The scalar value applied to the L1 blob base fee portion of the L1 cost.
+- `basefeeScalar` (`uint256`): The scalar value applied to the L1 base fee portion of the L1 cost.
+
+Additionally, the `setL1BlockValues` function is deprecated and replaced with `setL1BlockValuesEcotone`.
+`setL1BlockValuesEcotone` uses packed encoding for its parameters, which is described in
+[L1 Attributes Deposited Transaction Calldata](#l1-attributes-deposited-transaction-calldata)
 
 ## User-Deposited Transactions
 
@@ -367,4 +415,4 @@ it possible for users to interact with contracts on L2 even when the Sequencer i
 
 A reference implementation of the deposit contract can be found in [OptimismPortal.sol].
 
-[OptimismPortal.sol]: ../packages/contracts-bedrock/contracts/L1/OptimismPortal.sol
+[OptimismPortal.sol]: ../packages/contracts-bedrock/src/L1/OptimismPortal.sol

@@ -20,12 +20,7 @@ contract Faucet {
     /// @param userId     The id of the user that requested the drip.
     /// @param amount     The amount of funds sent.
     /// @param recipient  The recipient of the drip.
-    event Drip(
-        string indexed authModule,
-        bytes32 indexed userId,
-        uint256 amount,
-        address indexed recipient
-    );
+    event Drip(string indexed authModule, bytes32 indexed userId, uint256 amount, address indexed recipient);
 
     /// @notice Parameters for a drip.
     struct DripParameters {
@@ -128,5 +123,12 @@ contract Faucet {
         new SafeSend{ value: config.amount }(_params.recipient);
 
         emit Drip(config.name, _auth.id, config.amount, _params.recipient);
+    }
+
+    /// @notice Returns the enable value of a given auth module.
+    /// @param _module module to check.
+    /// @return bool enabled status of auth modulew.
+    function isModuleEnabled(IFaucetAuthModule _module) public view returns (bool) {
+        return modules[_module].enabled;
     }
 }

@@ -7,9 +7,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
-	"github.com/ethereum-optimism/optimism/op-node/testlog"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/testlog"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
 )
@@ -73,29 +73,29 @@ func TestValidateClaim(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		driver := createDriver(t, io.EOF)
 		expected := eth.Bytes32{0x11}
-		driver.l2OutputRoot = func() (eth.Bytes32, error) {
+		driver.l2OutputRoot = func(_ uint64) (eth.Bytes32, error) {
 			return expected, nil
 		}
-		err := driver.ValidateClaim(expected)
+		err := driver.ValidateClaim(uint64(0), expected)
 		require.NoError(t, err)
 	})
 
 	t.Run("Invalid", func(t *testing.T) {
 		driver := createDriver(t, io.EOF)
-		driver.l2OutputRoot = func() (eth.Bytes32, error) {
+		driver.l2OutputRoot = func(_ uint64) (eth.Bytes32, error) {
 			return eth.Bytes32{0x22}, nil
 		}
-		err := driver.ValidateClaim(eth.Bytes32{0x11})
+		err := driver.ValidateClaim(uint64(0), eth.Bytes32{0x11})
 		require.ErrorIs(t, err, ErrClaimNotValid)
 	})
 
 	t.Run("Error", func(t *testing.T) {
 		driver := createDriver(t, io.EOF)
 		expectedErr := errors.New("boom")
-		driver.l2OutputRoot = func() (eth.Bytes32, error) {
+		driver.l2OutputRoot = func(_ uint64) (eth.Bytes32, error) {
 			return eth.Bytes32{}, expectedErr
 		}
-		err := driver.ValidateClaim(eth.Bytes32{0x11})
+		err := driver.ValidateClaim(uint64(0), eth.Bytes32{0x11})
 		require.ErrorIs(t, err, expectedErr)
 	})
 }

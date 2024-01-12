@@ -9,10 +9,10 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-You can spin up a local devnet via `docker-compose`.
+You can spin up a local devnet via `docker compose`.
 For convenience, we have defined `make` targets to start and stop the devnet with a single command.
-To run the devnet, you will need `docker` and `docker-compose` installed.
-Then, as a precondition, make sure that you have compiled the contracts by `cd`ing into `packages/contracts`
+To run the devnet, you will need `docker` installed.
+Then, as a precondition, make sure that you have compiled the contracts by `cd`ing into `packages/contracts-bedrock`
 and running `pnpm i` followed by `pnpm build`. You'll only need to do this if you change the contracts in the future.
 
 Then, run the following:
@@ -33,7 +33,7 @@ The devnet comes with a pre-funded account you can use as a faucet:
 - Private key: `ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
 
 The faucet account exists on both L1 and L2. To deposit onto L2 from L1, you can use the `deposit` hardhat task.
-Run the following from the `packags/contracts` directory:
+Run the following from the `packages/contracts` directory:
 
 ```bash
 npx hardhat deposit --amount-eth <amount in eth> --to <address>

@@ -1,16 +1,16 @@
 package database
 
 import (
-	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-
-	"github.com/google/uuid"
+	"github.com/ethereum/go-ethereum/log"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 /**
@@ -18,67 +18,54 @@ import (
  */
 
 type BlockHeader struct {
-	Hash       common.Hash `gorm:"primaryKey;serializer:json"`
-	ParentHash common.Hash `gorm:"serializer:json"`
-	Number     U256
+	Hash       common.Hash `gorm:"primaryKey;serializer:bytes"`
+	ParentHash common.Hash `gorm:"serializer:bytes"`
+	Number     *big.Int    `gorm:"serializer:u256"`
 	Timestamp  uint64
+
+	RLPHeader *RLPHeader `gorm:"serializer:rlp;column:rlp_bytes"`
 }
 
-func BlockHeaderFromGethHeader(header *types.Header) BlockHeader {
+func BlockHeaderFromHeader(header *types.Header) BlockHeader {
 	return BlockHeader{
 		Hash:       header.Hash(),
 		ParentHash: header.ParentHash,
-		Number:     U256{Int: header.Number},
+		Number:     header.Number,
 		Timestamp:  header.Time,
+
+		RLPHeader: (*RLPHeader)(header),
 	}
 }
 
+func (b BlockHeader) String() string {
+	return fmt.Sprintf("{Hash: %s, Number: %s}", b.Hash, b.Number)
+}
+
 type L1BlockHeader struct {
-	BlockHeader
+	BlockHeader `gorm:"embedded"`
 }
 
 type L2BlockHeader struct {
-	BlockHeader
-}
-
-type LegacyStateBatch struct {
-	// `default:0` is added since gorm would interepret 0 as NULL
-	// violating the primary key constraint.
-	Index uint64 `gorm:"primaryKey;default:0"`
-
-	Root                common.Hash `gorm:"serializer:json"`
-	Size                uint64
-	PrevTotal           uint64
-	L1ContractEventGUID uuid.UUID
-}
-
-type OutputProposal struct {
-	OutputRoot    common.Hash `gorm:"primaryKey;serializer:json"`
-	L2OutputIndex U256
-	L2BlockNumber U256
-
-	L1ContractEventGUID uuid.UUID
+	BlockHeader `gorm:"embedded"`
 }
 
 type BlocksView interface {
-	L1BlockHeader(*big.Int) (*L1BlockHeader, error)
-	LatestL1BlockHeader() (*L1BlockHeader, error)
+	L1BlockHeader(common.Hash) (*L1BlockHeader, error)
+	L1BlockHeaderWithFilter(BlockHeader) (*L1BlockHeader, error)
+	L1BlockHeaderWithScope(func(db *gorm.DB) *gorm.DB) (*L1BlockHeader, error)
+	L1LatestBlockHeader() (*L1BlockHeader, error)
 
-	LatestCheckpointedOutput() (*OutputProposal, error)
-	OutputProposal(index *big.Int) (*OutputProposal, error)
-
-	L2BlockHeader(*big.Int) (*L2BlockHeader, error)
-	LatestL2BlockHeader() (*L2BlockHeader, error)
+	L2BlockHeader(common.Hash) (*L2BlockHeader, error)
+	L2BlockHeaderWithFilter(BlockHeader) (*L2BlockHeader, error)
+	L2BlockHeaderWithScope(func(db *gorm.DB) *gorm.DB) (*L2BlockHeader, error)
+	L2LatestBlockHeader() (*L2BlockHeader, error)
 }
 
 type BlocksDB interface {
 	BlocksView
 
-	StoreL1BlockHeaders([]*L1BlockHeader) error
-	StoreL2BlockHeaders([]*L2BlockHeader) error
-
-	StoreLegacyStateBatches([]*LegacyStateBatch) error
-	StoreOutputProposals([]*OutputProposal) error
+	StoreL1BlockHeaders([]L1BlockHeader) error
+	StoreL2BlockHeaders([]L2BlockHeader) error
 }
 
 /**
@@ -86,45 +73,48 @@ type BlocksDB interface {
  */
 
 type blocksDB struct {
+	log  log.Logger
 	gorm *gorm.DB
 }
 
-func newBlocksDB(db *gorm.DB) BlocksDB {
-	return &blocksDB{gorm: db}
+func newBlocksDB(log log.Logger, db *gorm.DB) BlocksDB {
+	return &blocksDB{log: log.New("table", "blocks"), gorm: db}
 }
 
 // L1
 
-func (db *blocksDB) StoreL1BlockHeaders(headers []*L1BlockHeader) error {
-	result := db.gorm.Create(&headers)
+func (db *blocksDB) StoreL1BlockHeaders(headers []L1BlockHeader) error {
+	deduped := db.gorm.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "hash"}}, DoNothing: true})
+	result := deduped.Create(&headers)
+	if result.Error == nil && int(result.RowsAffected) < len(headers) {
+		db.log.Warn("ignored L1 block duplicates", "duplicates", len(headers)-int(result.RowsAffected))
+	}
+
 	return result.Error
 }
 
-func (db *blocksDB) StoreLegacyStateBatches(stateBatches []*LegacyStateBatch) error {
-	result := db.gorm.Create(stateBatches)
-	return result.Error
+func (db *blocksDB) L1BlockHeader(hash common.Hash) (*L1BlockHeader, error) {
+	return db.L1BlockHeaderWithFilter(BlockHeader{Hash: hash})
 }
 
-func (db *blocksDB) StoreOutputProposals(outputs []*OutputProposal) error {
-	result := db.gorm.Create(outputs)
-	return result.Error
+func (db *blocksDB) L1BlockHeaderWithFilter(filter BlockHeader) (*L1BlockHeader, error) {
+	return db.L1BlockHeaderWithScope(func(gorm *gorm.DB) *gorm.DB { return gorm.Where(&filter) })
 }
 
-func (db *blocksDB) L1BlockHeader(height *big.Int) (*L1BlockHeader, error) {
+func (db *blocksDB) L1BlockHeaderWithScope(scope func(*gorm.DB) *gorm.DB) (*L1BlockHeader, error) {
 	var l1Header L1BlockHeader
-	result := db.gorm.Where(&BlockHeader{Number: U256{Int: height}}).Take(&l1Header)
+	result := db.gorm.Scopes(scope).Take(&l1Header)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-
 		return nil, result.Error
 	}
 
 	return &l1Header, nil
 }
 
-func (db *blocksDB) LatestL1BlockHeader() (*L1BlockHeader, error) {
+func (db *blocksDB) L1LatestBlockHeader() (*L1BlockHeader, error) {
 	var l1Header L1BlockHeader
 	result := db.gorm.Order("number DESC").Take(&l1Header)
 	if result.Error != nil {
@@ -138,66 +128,48 @@ func (db *blocksDB) LatestL1BlockHeader() (*L1BlockHeader, error) {
 	return &l1Header, nil
 }
 
-func (db *blocksDB) LatestCheckpointedOutput() (*OutputProposal, error) {
-	var outputProposal OutputProposal
-	result := db.gorm.Order("l2_output_index DESC").Take(&outputProposal)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-
-		return nil, result.Error
-	}
-
-	return &outputProposal, nil
-}
-
-func (db *blocksDB) OutputProposal(index *big.Int) (*OutputProposal, error) {
-	var outputProposal OutputProposal
-	result := db.gorm.Where(&OutputProposal{L2OutputIndex: U256{Int: index}}).Take(&outputProposal)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-
-		return nil, result.Error
-	}
-
-	return &outputProposal, nil
-}
-
 // L2
 
-func (db *blocksDB) StoreL2BlockHeaders(headers []*L2BlockHeader) error {
-	result := db.gorm.Create(&headers)
+func (db *blocksDB) StoreL2BlockHeaders(headers []L2BlockHeader) error {
+	deduped := db.gorm.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "hash"}}, DoNothing: true})
+	result := deduped.Create(&headers)
+	if result.Error == nil && int(result.RowsAffected) < len(headers) {
+		db.log.Warn("ignored L2 block duplicates", "duplicates", len(headers)-int(result.RowsAffected))
+	}
+
 	return result.Error
 }
 
-func (db *blocksDB) L2BlockHeader(height *big.Int) (*L2BlockHeader, error) {
+func (db *blocksDB) L2BlockHeader(hash common.Hash) (*L2BlockHeader, error) {
+	return db.L2BlockHeaderWithFilter(BlockHeader{Hash: hash})
+}
+
+func (db *blocksDB) L2BlockHeaderWithFilter(filter BlockHeader) (*L2BlockHeader, error) {
+	return db.L2BlockHeaderWithScope(func(gorm *gorm.DB) *gorm.DB { return gorm.Where(&filter) })
+}
+
+func (db *blocksDB) L2BlockHeaderWithScope(scope func(*gorm.DB) *gorm.DB) (*L2BlockHeader, error) {
 	var l2Header L2BlockHeader
-	result := db.gorm.Where(&BlockHeader{Number: U256{Int: height}}).Take(&l2Header)
+	result := db.gorm.Scopes(scope).Take(&l2Header)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-
 		return nil, result.Error
 	}
 
 	return &l2Header, nil
 }
 
-func (db *blocksDB) LatestL2BlockHeader() (*L2BlockHeader, error) {
+func (db *blocksDB) L2LatestBlockHeader() (*L2BlockHeader, error) {
 	var l2Header L2BlockHeader
 	result := db.gorm.Order("number DESC").Take(&l2Header)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-
 		return nil, result.Error
 	}
 
-	result.Logger.Info(context.Background(), "number ", l2Header.Number)
 	return &l2Header, nil
 }
