@@ -190,9 +190,7 @@ services:
   suave:
     depends_on:
       - op-builder
-    build:
-      context: ../
-      dockerfile: pbs-deps/suave-geth/Dockerfile
+    build: ../pbs-deps/suave-geth
     command:
       - --dev
       - --dev.gaslimit=30000000
@@ -245,9 +243,7 @@ services:
   op-builder:
     depends_on:
       - op-node
-    build:
-      context: ../
-      dockerfile: pbs-deps/op-builder/Dockerfile
+    build: ../pbs-deps/op-builder
     volumes:
       - "builder_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
