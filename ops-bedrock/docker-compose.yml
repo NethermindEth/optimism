@@ -190,7 +190,9 @@ services:
   suave:
     depends_on:
       - op-builder
-    image: flashbots/suave:latest
+    build:
+      context: ../
+      dockerfile: pbs-deps/suave-geth/Dockerfile
     command:
       - --dev
       - --dev.gaslimit=30000000
@@ -243,7 +245,9 @@ services:
   op-builder:
     depends_on:
       - op-node
-    image: flashbots/builder:optimism
+    build:
+      context: ../
+      dockerfile: pbs-deps/op-builder/Dockerfile
     volumes:
       - "builder_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
