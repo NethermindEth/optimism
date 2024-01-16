@@ -20,3 +20,15 @@
 [submodule "packages/contracts-bedrock/lib/solady"]
 	path = packages/contracts-bedrock/lib/solady
 	url = https://github.com/Vectorized/solady
+[submodule "pbs-deps/suave-geth"]
+	path = pbs-deps/suave-geth
+	url = https://github.com/NethermindEth/suave-geth.git
+	branch = main
+[submodule "pbs-deps/op-builder"]
+	path = pbs-deps/op-builder
+	url = https://github.com/NethermindEth/op-builder.git
+	branch = suavex
+[submodule "pbs-deps/suapp"]
+	path = pbs-deps/suapp
+	url = https://github.com/NethermindEth/suapp.git
+	branch = builder-for-optimism
