@@ -21,6 +21,12 @@ type ExecEngine interface {
 	GetPayload(ctx context.Context, payloadId eth.PayloadID) (*eth.ExecutionPayload, error)
 	ForkchoiceUpdate(ctx context.Context, state *eth.ForkchoiceState, attr *eth.PayloadAttributes) (*eth.ForkchoiceUpdatedResult, error)
 	NewPayload(ctx context.Context, payload *eth.ExecutionPayload) (*eth.PayloadStatusV1, error)
+	// HACK: to quicker get access to MevEngine, otherwise it need to be pushed the same way as engine is.
+	GetMevPayload(ctx context.Context, parent common.Hash) (*eth.ExecutionPayload, error)
+}
+
+type MevEngine interface {
+	GetMevPayload(context.Context, common.Hash) (*eth.ExecutionPayload, error)
 }
 
 type EngineController struct {
@@ -38,10 +44,11 @@ type EngineController struct {
 	needFCUCall     bool
 
 	// Building State
-	buildingOnto eth.L2BlockRef
-	buildingID   eth.PayloadID
-	buildingSafe bool
-	safeAttrs    *AttributesWithParent
+	buildingOnto     eth.L2BlockRef
+	buildingID       eth.PayloadID
+	buildingSafe     bool
+	buildingNoTxPool bool
+	safeAttrs        *AttributesWithParent
 }
 
 func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, genesis rollup.Genesis, syncMode sync.Mode) *EngineController {
@@ -132,6 +139,7 @@ func (e *EngineController) StartPayload(ctx context.Context, parent eth.L2BlockR
 
 	e.buildingID = id
 	e.buildingSafe = updateSafe
+	e.buildingNoTxPool = attrs.attributes.NoTxPool
 	e.buildingOnto = parent
 	if updateSafe {
 		e.safeAttrs = attrs
@@ -154,7 +162,7 @@ func (e *EngineController) ConfirmPayload(ctx context.Context) (out *eth.Executi
 	}
 	// Update the safe head if the payload is built with the last attributes in the batch.
 	updateSafe := e.buildingSafe && e.safeAttrs != nil && e.safeAttrs.isLastInSpan
-	payload, errTyp, err := confirmPayload(ctx, e.log, e.engine, fc, e.buildingID, updateSafe)
+	payload, errTyp, err := confirmPayload(ctx, e.log, e.engine, fc, e.buildingOnto.ID(), e.buildingID, updateSafe, e.buildingNoTxPool)
 	if err != nil {
 		return nil, errTyp, fmt.Errorf("failed to complete building on top of L2 chain %s, id: %s, error (%d): %w", e.buildingOnto, e.buildingID, errTyp, err)
 	}

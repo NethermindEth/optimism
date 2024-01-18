@@ -2,18 +2,21 @@ package sources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
+	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/sources/caching"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type EngineClientConfig struct {
@@ -30,7 +33,18 @@ func EngineClientDefaultConfig(config *rollup.Config) *EngineClientConfig {
 // EngineClient extends L2Client with engine API bindings.
 type EngineClient struct {
 	*L2Client
+	MevClient *MevClient
 }
+
+func (ec *EngineClient) GetMevPayload(ctx context.Context, parent common.Hash) (*eth.ExecutionPayload, error) {
+	if ec.MevClient == nil {
+		return nil, errors.New("trying to get mev payload while mev client is nil")
+	}
+	return ec.MevClient.GetMevPayload(ctx, parent)
+}
+
+// it's here only needed to be able to quickly access MevEngine from EngineQueue
+var _ derive.MevEngine = (*EngineClient)(nil)
 
 func NewEngineClient(client client.RPC, log log.Logger, metrics caching.Metrics, config *EngineClientConfig) (*EngineClient, error) {
 	l2Client, err := NewL2Client(client, log, metrics, &config.L2ClientConfig)

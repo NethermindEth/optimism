@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -49,11 +50,12 @@ type OpNode struct {
 	l1Source  *sources.L1Client     // L1 Client to fetch data from
 	l2Driver  *driver.Driver        // L2 Engine to Sync
 	l2Source  *sources.EngineClient // L2 Execution Engine RPC bindings
-	server    *rpcServer            // RPC server hosting the rollup-node API
-	p2pNode   *p2p.NodeP2P          // P2P node functionality
-	p2pSigner p2p.Signer            // p2p gogssip application messages will be signed with this signer
-	tracer    Tracer                // tracer to get events for testing/debugging
-	runCfg    *RuntimeConfig        // runtime configurables
+	mevSource *sources.MevClient
+	server    *rpcServer     // RPC server hosting the rollup-node API
+	p2pNode   *p2p.NodeP2P   // P2P node functionality
+	p2pSigner p2p.Signer     // p2p gogssip application messages will be signed with this signer
+	tracer    Tracer         // tracer to get events for testing/debugging
+	runCfg    *RuntimeConfig // runtime configurables
 
 	rollupHalt string // when to halt the rollup, disabled if empty
 
@@ -123,6 +125,9 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	if err := n.initL1BeaconAPI(ctx, cfg); err != nil {
 		return err
 	}
+	if err := n.initMev(ctx, cfg); err != nil {
+		return fmt.Errorf("failed to init the mev client: %w", err)
+	}
 	if err := n.initL2(ctx, cfg, snapshotLog); err != nil {
 		return fmt.Errorf("failed to init L2: %w", err)
 	}
@@ -152,6 +157,16 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	if err := n.initPProf(cfg); err != nil {
 		return fmt.Errorf("failed to init profiling: %w", err)
 	}
+	return nil
+}
+
+func (n *OpNode) initMev(ctx context.Context, cfg *Config) error {
+	mevSource, err := sources.NewMevClient(n.log, os.Getenv("MEV_ENDPOINT_ADDR"))
+	if err != nil {
+		return fmt.Errorf("failed to setup MEV client: %w", err)
+	}
+
+	n.mevSource = mevSource
 	return nil
 }
 
@@ -329,6 +344,8 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 	if err != nil {
 		return fmt.Errorf("failed to create Engine client: %w", err)
 	}
+
+	n.l2Source.MevClient = n.mevSource
 
 	if err := cfg.Rollup.ValidateL2Config(ctx, n.l2Source); err != nil {
 		return err
