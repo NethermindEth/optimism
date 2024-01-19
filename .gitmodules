@@ -32,3 +32,6 @@
 	path = pbs-deps/suapp
 	url = https://github.com/NethermindEth/suapp.git
 	branch = builder-for-optimism
+[submodule "pbs-deps/mev-boost"]
+	path = pbs-deps/mev-boost
+	url = git@github.com:flashbots/mev-boost.git
