@@ -58,6 +58,10 @@ func (o *OracleEngine) GetPayload(ctx context.Context, payloadId eth.PayloadID) 
 	return res.ExecutionPayload, nil
 }
 
+func (o *OracleEngine) GetMevPayload(ctx context.Context, parent common.Hash) (*eth.ExecutionPayload, error) {
+	return nil, errors.New("OracleEngine.GetMevPayload is not implemented")
+}
+
 func (o *OracleEngine) ForkchoiceUpdate(ctx context.Context, state *eth.ForkchoiceState, attr *eth.PayloadAttributes) (*eth.ForkchoiceUpdatedResult, error) {
 	return o.api.ForkchoiceUpdatedV2(ctx, state, attr)
 }
