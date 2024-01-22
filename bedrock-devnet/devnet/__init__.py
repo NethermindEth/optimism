@@ -232,7 +232,7 @@ def devnet_deploy(paths):
     addresses = read_json(paths.addresses_json_path)
 
     log.info('Bringing up L2.')
-    run_command(['docker', 'compose', 'up', '-d', 'l2'], cwd=paths.ops_bedrock_dir, env={
+    run_command(['docker', 'compose', 'up', '-d', 'l2', 'mev-boost'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
     })
     wait_up(9545)

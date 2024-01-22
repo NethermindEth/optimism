@@ -264,5 +264,5 @@ services:
     build: ../pbs-deps/mev-boost
     command:
       - -addr=0.0.0.0:18555
-      - -relay=http://localhost:18550
+      - -relay=http://0x010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010@localhost:18550
       - -request-timeout-getpayload=500
