@@ -266,3 +266,5 @@ services:
       - -addr=0.0.0.0:18550
       - -relay=http://localhost:18585
       - -request-timeout-getpayload=500
+    ports:
+      - "18550:18550"
